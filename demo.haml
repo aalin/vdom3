@@ -1,0 +1,21 @@
+:ruby
+  def mount
+    puts "mounted"
+  end
+:ruby
+  title = props[:title]
+  items = ["foo", "bar", "baz"]
+%div
+  %h1(class="title") My webpage
+  %h2(class="subtitle")= title
+  %ul
+    = items.map do |item|
+      %li(foo=bar){class: i.zero? && "first"}
+        %h3= item
+        %ul
+          = item.each_char.map do |char|
+            %li= char
+:css
+  h2 {
+    background: #f0f;
+  }

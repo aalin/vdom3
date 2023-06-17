@@ -1,0 +1,46 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    async (2.6.2)
+      console (~> 1.10)
+      fiber-annotation
+      io-event (~> 1.1)
+      timers (~> 4.1)
+    coderay (1.1.3)
+    console (1.17.2)
+      fiber-annotation
+      fiber-local
+    fiber-annotation (0.2.0)
+    fiber-local (1.0.0)
+    haml (6.1.1)
+      temple (>= 0.8.2)
+      thor
+      tilt
+    io-event (1.2.2)
+    method_source (1.0.0)
+    prettier_print (1.2.1)
+    pry (0.14.2)
+      coderay (~> 1.1)
+      method_source (~> 1.0)
+    syntax_tree (6.1.1)
+      prettier_print (>= 1.2.0)
+    syntax_tree-haml (4.0.3)
+      haml (>= 5.2)
+      prettier_print (>= 1.2.1)
+      syntax_tree (>= 6.0.0)
+    temple (0.10.2)
+    thor (1.2.2)
+    tilt (2.2.0)
+    timers (4.3.5)
+
+PLATFORMS
+  x86_64-darwin-20
+
+DEPENDENCIES
+  async (~> 2.6)
+  pry (~> 0.14.2)
+  syntax_tree (~> 6.1)
+  syntax_tree-haml (~> 4.0)
+
+BUNDLED WITH
+   2.4.6

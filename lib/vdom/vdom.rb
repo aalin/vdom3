@@ -1,0 +1,2 @@
+module VDOM
+end
