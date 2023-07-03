@@ -12,12 +12,11 @@ require "syntax_suggest/lex_all"
 require "syntax_suggest/ripper_errors"
 require_relative "mutation_visitor"
 
-class SyntaxTree::MatchVisitor
-  alias old_visit visit
-  def visit(node)
-    old_visit(node) if node
-  end
-end
+# class SyntaxTree::MatchVisitor
+#   alias old_visit visit
+#   def visit(node) =
+#     node && old_visit(node)
+# end
 
 module VDOM
   module Transformers
@@ -339,7 +338,7 @@ module VDOM
             ]
           ]
           custom_element.refs.push(ref)
-          attributes = { **attributes, data_rdom_ref: ref.name }
+          attributes = { **attributes, data_vref: ref.name }
         end
 
         if parse
@@ -398,7 +397,7 @@ module VDOM
       def create_slot(custom_element, children)
         slot = Slot["slot#{custom_element.slots.size}", children]
         custom_element.slots.push(slot)
-        Tag[:slot, nil, slot, { data_rdom_slot: slot.name }, {}, []]
+        Tag[:slot, nil, slot, { name: slot.name }, {}, []]
       end
 
       def parse_ruby(code, fix: true)
