@@ -48,8 +48,45 @@ module VDOM
       end
 
       Tag = Data.define(:name, :key, :slot, :attrs, :props, :children) do
+        include SyntaxTree::DSL
+
         def to_s
           "<#{name}#{attrs.map { format(' %s="%s"', _1.to_s.tr("_", "-"), _2) }.join}>#{children.join}</#{name}>"
+        end
+
+        def to_ruby
+          ARef(
+            VarRef(Const("H")),
+            Args([
+              SymbolLiteral(Ident(name)),
+              *children.map { obj_to_ruby(_1) },
+              BareAssocHash(
+                attrs.map do |key, value|
+                  p(Assoc(Label("#{key}:"), obj_to_ruby(value)))
+                end
+              )
+            ])
+          )
+        end
+
+        def obj_to_ruby(obj)
+          case obj
+          in Tag
+            obj.to_ruby
+          in String
+            StringLiteral([TStringContent(obj.to_s)], '"')
+          in Integer
+            Int(obj.to_s)
+          in Float
+            FloatLiteral(obj.to_s)
+          in Symbol
+            SymbolLiteral(Ident(obj.to_s))
+          in Array
+            ArrayLiteral(
+              LBracket("["),
+              Args([]) #obj.map { obj_to_ruby(_1) })
+            )
+          end
         end
       end
 
@@ -181,6 +218,7 @@ module VDOM
           Args([
             DynaSymbol([TStringContent(custom_element.name)], "'"),
             StringLiteral([TStringContent(custom_element.root.to_s)], "'"),
+            custom_element.root.to_ruby,
             VarRef(Const(STYLES_CONST_NAME)),
           ])
         )
