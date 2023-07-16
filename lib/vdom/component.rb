@@ -56,6 +56,8 @@ module VDOM
     Metadata = Data.define(:name, :path)
 
     module Registry
+      HASH_LENGTH = 5
+
       def self.[](path)
         const_get(const_name_for_path(path))
       rescue
@@ -68,8 +70,8 @@ module VDOM
 
       def self.const_name_for_path(path)
         name = path.to_s.upcase.gsub(/[^A-Z0-9]+/, "_")
-        hash = Digest::SHA256.hexdigest(path.to_s).upcase
-        "MOD_#{name}_#{hash}"
+        hash = Digest::SHA256.hexdigest(path.to_s)[0..HASH_LENGTH].upcase
+        "MOD_#{name}__#{hash}"
       end
     end
 

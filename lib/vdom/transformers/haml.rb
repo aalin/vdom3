@@ -93,8 +93,8 @@ module VDOM
       Ref = Data.define(:name, :props)
       Prop = Data.define(:name, :expressions)
 
-      PARTIALS_CONST_NAME = "RDOM_Partials"
-      STYLES_CONST_NAME = "RDOM_Stylesheet"
+      PARTIALS_CONST_NAME = "VDOM_Partials"
+      STYLES_CONST_NAME = "VDOM_Stylesheet"
       CUSTOM_ELEMENT_NAME_PREFIX = "mayu-elem-"
 
       include SyntaxTree::DSL

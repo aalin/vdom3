@@ -9,12 +9,12 @@
   %h1(class="title") My webpage
   %h2(class="subtitle")= title
   %ul
-    = items.map do |item|
-      %li(foo=bar){class: i.zero? && "first"}
+    = items.to_enum.with_index.map do |item, i|
+      %li[i](foo="bar"){class: i.zero? && "first"}
         %h3= item
         %ul
-          = item.each_char.map do |char|
-            %li= char
+          = item.each_char.with_index.map do |char, j|
+            %li[j]= char
 :css
   h2 {
     background: #f0f;
