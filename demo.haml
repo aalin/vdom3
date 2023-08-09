@@ -11,7 +11,9 @@
   %ul
     = items.to_enum.with_index.map do |item, i|
       %li[i](foo="bar"){class: i.zero? && "first"}
-        %h3= item
+        %h3
+          %span> Static
+          %span= item
         %ul
           = item.each_char.with_index.map do |char, j|
             %li[j]= char

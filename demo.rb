@@ -1,5 +1,5 @@
+require_relative "lib/vdom"
 require_relative "lib/vdom/component"
-
 
 class HTMLRenderer
   VOID_ELEMENTS = %w[
@@ -9,7 +9,7 @@ class HTMLRenderer
   def render(descriptor)
     case descriptor
     in Array
-      descriptor.map {render(_1)}.join
+      render_fragment(descriptor)
     in VDOM::Descriptors::Text
       descriptor.content
     in VDOM::Descriptors::Comment
@@ -26,6 +26,11 @@ class HTMLRenderer
   end
 
   private
+
+  def render_fragment(array)
+    contents = array.map { render(_1) }.join
+    "<mayu-fragment>#{contents}</mayu-fragment>"
+  end
 
   def render_text(text) =
     text.content.to_s

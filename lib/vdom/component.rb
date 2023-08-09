@@ -86,7 +86,7 @@ module VDOM
         # puts "\e[33m#{source}\e[0m"
 
         relative_path = path.relative_path_from(Dir.pwd)
-        source = Transformers::Haml.transform(source, relative_path)
+        source = Transformers::Haml.transform(source, relative_path).output
         source = Transformers::Ruby.transform(source)
 
         puts "\e[3m TRANSFORMED \e[0m"
