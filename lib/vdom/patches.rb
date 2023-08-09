@@ -2,40 +2,33 @@
 
 module VDOM
   module Patches
-    CreateRoot = Data.define()
-    DestroyRoot = Data.define()
+    CreateRoot = Data.define
+    DestroyRoot = Data.define
 
     CreateElement = Data.define(:id, :type)
     CreateDocumentFragment = Data.define(:id)
     CreateTextNode = Data.define(:id, :content)
     CreateCommentNode = Data.define(:id, :content)
 
-    InsertBefore = Data.define(:parent_id, :id, :ref_id)
-    RemoveChild = Data.define(:parent_id, :id)
+    ReplaceChildren = Data.define(:parent_id, :child_ids)
+
     RemoveNode = Data.define(:id)
 
-    DefineCustomElement = Data.define(:name, :filename)
-    AssignSlot = Data.define(:parent_id, :name, :node_ids)
+    SetAttribute = Data.define(:id, :name, :value)
+    RemoveAttribute = Data.define(:id, :name)
 
-    CreateChildren = Data.define(:parent_id, :slot_id)
-    RemoveChildren = Data.define(:slot_id)
-    ReorderChildren = Data.define(:slot_id, :child_ids)
+    SetListener = Data.define(:id, :name, :listener_id)
+    RemoveListener = Data.define(:id, :name, :listener_id)
 
-    SetAttribute = Data.define(:parent_id, :ref_id, :name, :value)
-    RemoveAttribute = Data.define(:parent_id, :ref_id, :name)
-
-    SetListener = Data.define(:parent_id, :ref_id, :name, :listener_id)
-    RemoveListener = Data.define(:parent_id, :ref_id, :name, :listener_id)
-
-    SetCSSProperty = Data.define(:parent_id, :ref_id, :name, :value)
-    RemoveCSSProperty = Data.define(:parent_id, :ref_id, :name)
+    SetCSSProperty = Data.define(:id, :name, :value)
+    RemoveCSSProperty = Data.define(:id, :name)
 
     SetTextContent = Data.define(:id, :content)
     ReplaceData = Data.define(:id, :offset, :count, :data)
     InsertData = Data.define(:id, :offset, :data)
     DeleteData = Data.define(:id, :offset, :count)
 
-    Ping = Data.define(:time)
+    Ping = Data.define(:timestamp)
 
     Event = Data.define(:event, :payload)
 
