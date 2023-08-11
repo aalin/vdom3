@@ -34,7 +34,6 @@ module VDOM
       def self.transform(source)
         transformer = new
         SyntaxTree.parse(source)
-          .accept(transformer.state_and_props)
           .accept(transformer.heredoc_html)
           .then { transformer.wrap_in_class(_1) }
           .accept(transformer.frozen_strings)
@@ -62,27 +61,6 @@ module VDOM
             )
           ])
         program.copy(statements:)
-      end
-
-      def state_and_props
-        MutationVisitor.new.tap do |visitor|
-          visitor.mutate("VarRef[value: IVar | GVar]") do |node|
-            aref(node.value)
-          end
-
-          visitor.mutate("Assign[target: VarField[value: GVar]]") do |assign|
-            loc = assign.target.location
-            raise "Can not write to props on line #{loc.start_line} col #{loc.start_column}"
-          end
-
-          visitor.mutate("OpAssign[target: VarField[value: IVar]]") do |assign|
-            update(assign.copy(target: aref_field(assign.target.value)))
-          end
-
-          visitor.mutate("Assign[target: VarField[value: IVar]]") do |assign|
-            update(assign.copy(target: aref_field(assign.target.value)))
-          end
-        end
       end
 
       def heredoc_html

@@ -11,9 +11,12 @@ module VDOM
     class Base
       H = VDOM::Descriptors::H
 
+      def self.inspect =
+        self::COMPONENT_META.name
+
       def self.import(filename)
-        Component.load_file(
-          filename,
+        Component::Loader.load_file(
+          "#{filename}.haml",
           File.dirname(caller.first.split(":", 2).first)
         )
       end
@@ -35,8 +38,8 @@ module VDOM
         task.async(&)
       end
 
-      def update(&)
-        yield
+      def update!(...)
+        yield if block_given?
         rerender!
       end
 
@@ -87,6 +90,7 @@ module VDOM
 
         relative_path = path.relative_path_from(Dir.pwd)
         source = Transformers::Haml.transform(source, relative_path).output
+        puts source
         source = Transformers::Ruby.transform(source)
 
         puts "\e[3m TRANSFORMED \e[0m"

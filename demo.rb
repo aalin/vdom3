@@ -4,12 +4,22 @@ require_relative "lib/vdom/runtime"
 
 require "syntax_tree/xml"
 
-runtime = VDOM::Runtime.new
+Sync do |task|
+  runtime = VDOM::Runtime.new
 
-Component = VDOM::Component::Loader.load_file("demo.haml")
+  Layout = VDOM::Component::Loader.load_file("demo/layout.haml")
+  Component = VDOM::Component::Loader.load_file("demo/Demo.haml")
 
-runtime.render(VDOM::Descriptors::H[Component])
+  H = VDOM::Descriptors::H
 
-html = runtime.to_html
-p html
-puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
+  puts "before render"
+
+  task.async do
+    runtime.render(H[Layout, H[Component]])
+  end
+  puts "rendered"
+
+  sleep 0.5
+  # html = runtime.to_html
+  # puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
+end

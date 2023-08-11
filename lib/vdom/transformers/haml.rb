@@ -440,7 +440,7 @@ module VDOM
             name:, attributes:, dynamic_attributes:, self_closing:, value:
           }
 
-          return visit_slot_tag(node) if name == "slot"
+          # return visit_slot_tag(node) if name == "slot"
 
           attrs = []
 
@@ -840,21 +840,22 @@ module VDOM
               raise "Can not write to prop #{var_name} on line #{loc.start_line} col #{loc.start_column}"
             end
 
-            visitor.mutate("VarRef[value: IVar]") do |var_ref|
-              aref(var_ref.value)
+            # visitor.mutate("VarRef[value: IVar]") do |var_ref|
+            #   aref(var_ref.value)
+            # end
+
+            visitor.mutate(
+              "OpAssign[target: VarField[value: IVar]]"
+            ) do |assign|
+              CallNode(nil, nil, Ident("update!"), ArgParen(Args([assign])))
             end
 
-            # visitor.mutate(
-            #   "OpAssign[target: VarField[value: IVar]]"
-            # ) do |assign|
-            #   assign.copy(target: aref_field(assign.target.value))
-            # end
-            #
-            # visitor.mutate(
-            #   "Assign[target: VarField[value: IVar]]"
-            # ) do |assign|
-            #   assign.copy(target: aref_field(assign.target.value))
-            # end
+            visitor.mutate(
+              "Assign[target: VarField[value: IVar]]"
+            ) do |assign|
+              CallNode(nil, nil, Ident("update!"), ArgParen(Args([assign])))
+              # assign.copy(target: aref_field(assign.target.value))
+            end
           end
         end
 

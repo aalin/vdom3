@@ -1,7 +1,33 @@
 module VDOM
   module Descriptors
-    Element = Data.define(:type, :key, :slot, :children, :props) do
-      def same?(other)
+    Element = Data.define(:type, :children, :key, :slot, :props, :hash) do
+      def self.[](type, *children, key: nil, slot: nil, **props) =
+        new(
+          type,
+          normalize_children(children),
+          key,
+          slot,
+          props,
+          calculate_hash(type, key, slot, props)
+        )
+
+      def self.calculate_hash(type, key, slot, props) =
+        [self.class, type, key, slot, type == :input && props[:type]].hash
+
+      def self.normalize_children(children) =
+        Array(children)
+          .flatten
+          .map { or_string(_1) }
+          .compact
+
+      def self.or_string(descriptor) =
+        if self === descriptor
+          descriptor
+        else
+          (descriptor && descriptor.to_s) || nil
+        end
+
+      def same?(other) =
         if self.class === other && type == other.type && key == other.key
           if type == :input
             props[:type] == other.props[:type]
@@ -11,7 +37,6 @@ module VDOM
         else
           false
         end
-      end
     end
 
     Text = Data.define(:content) do
@@ -20,21 +45,38 @@ module VDOM
     end
 
     Comment = Data.define(:content) do
-      def same?(other) =
-        self.class === other
+      def same?(other) = self.class === other
     end
 
     StyleSheet = Data.define(:content)
 
+    def self.get_hash(descriptor)
+      case descriptor
+      when Element
+        descriptor.hash
+      else
+        descriptor.class
+      end
+    end
+
+    def self.same?(a, b) =
+      get_hash(a) == get_hash(b)
+
+    def self.group_by_slot(descriptors)
+      descriptors.group_by do |descriptor|
+        if descriptor in Descriptors::Element[slot:]
+          slot
+        else
+          nil
+        end
+      end
+    end
+
     module H
       extend self
 
-      def element(type, *children, key: nil, slot: nil, **props) =
-        Element[type, key, slot, children, props]
-      alias [] element
-
-      def custom_element(name, template, stylesheet) =
-        CustomElement[name, template, stylesheet]
+      def [](type, *children, key: nil, slot: nil, **props) =
+        Element[type, *children, key:, slot:, **props]
 
       def text(content) =
         Text[content]

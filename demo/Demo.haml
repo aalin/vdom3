@@ -1,4 +1,7 @@
 :ruby
+  Heading = import("./Heading")
+  Counter = import("./Counter")
+
   def mount
     puts "mounted"
   end
@@ -6,8 +9,9 @@
   title = props[:title]
   items = ["foo", "bar", "baz"]
 %div
-  %h1(class="title") My webpage
+  %Heading My webpage
   %h2(class="subtitle")= title
+  %Counter
   %ul
     = items.to_enum.with_index.map do |item, i|
       %li[i](foo="bar"){class: i.zero? && "first"}
