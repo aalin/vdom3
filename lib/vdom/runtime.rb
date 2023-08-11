@@ -8,6 +8,20 @@ require_relative "patches"
 
 module VDOM
   class Runtime
+    IdNode = Data.define(:id, :children) do
+      def self.[](id, children = nil)
+        new(id, children)
+      end
+
+      def inspect
+        if c = children
+          "#{id} => #{c.inspect}"
+        else
+          id
+        end
+      end
+    end
+
     class VNode
       def self.generate_id =
         SecureRandom.alphanumeric(10)
@@ -26,6 +40,10 @@ module VDOM
 
       def dom_id =
         @id
+
+      def dom_id_tree
+        IdNode[@id]
+      end
 
       def mount
       end
@@ -89,6 +107,10 @@ module VDOM
         "<!doctype html>\n#{@child.to_s}"
       end
 
+      def dom_id_tree
+        @child&.dom_id_tree
+      end
+
       def mount
         @child&.mount
       end
@@ -132,6 +154,10 @@ module VDOM
       def dom_id =
         @child&.dom_id
 
+      def dom_id_tree
+        @child&.dom_id_tree
+      end
+
       def to_s
         @child.to_s
       end
@@ -161,14 +187,19 @@ module VDOM
     class VSlot < VNode
       def initialize(...)
         super
-        @children = get_slotted(@descriptor.props[:name]).map { init_vnode(_1) }
+      end
+
+      def dom_id_tree
+        @child&.dom_id_tree
       end
 
       def mount
+        @child = init_vnode(get_slotted(@descriptor.props[:name]))
+        @child.mount
       end
 
       def to_s
-        @children.map(&:to_s).join
+        @child.to_s
       end
     end
 
@@ -180,6 +211,10 @@ module VDOM
       def initialize(...)
         super(...)
         @children = []
+      end
+
+      def dom_id_tree
+        IdNode[@id, @children.map(&:dom_id_tree).compact]
       end
 
       def mount
@@ -206,11 +241,12 @@ module VDOM
         end.join
 
         identifier = ' data-mayu-id="%s"' % @id
+        name = @descriptor.type.to_s.downcase.tr("_", "-")
 
         if VOID_ELEMENTS.include?(@descriptor.type)
-          "<#{@descriptor.type}#{identifier}#{attributes}>"
+          "<#{name}#{identifier}#{attributes}>"
         else
-          "<#{@descriptor.type}#{identifier}#{attributes}>#{@children.join}</#{@descriptor.type}>"
+          "<#{name}#{identifier}#{attributes}>#{@children.join}</#{name}>"
         end
       end
 
@@ -289,6 +325,9 @@ module VDOM
 
     def to_html =
       @document.to_s
+
+    def dom_id_tree =
+      @document.dom_id_tree
 
     def emit_patch(patch)
       puts "\e[34m#{patch}\e[0m"
