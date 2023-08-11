@@ -20,6 +20,6 @@ Sync do |task|
   puts "rendered"
 
   sleep 0.5
-  # html = runtime.to_html
-  # puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
+  html = runtime.to_html
+  puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
 end

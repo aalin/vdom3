@@ -89,8 +89,17 @@ module VDOM
         "<!doctype html>\n#{@child.to_s}"
       end
 
+      def mount
+        @child&.mount
+      end
+
       def patch(descriptor)
         @child = init_vnode(descriptor)
+        @child.mount
+      end
+
+      def unmount
+        @child&.unmount
       end
 
       def update_children_order
@@ -143,7 +152,7 @@ module VDOM
           @child.update(new_child)
         else
           @child&.unmount
-          @child = new_child ? init_vnode(new_child) : nil
+          @child = new_child ? init_vnode(new_child).tap(&:mount) : nil
           update_children_order
         end
       end
@@ -171,11 +180,11 @@ module VDOM
       def initialize(...)
         super(...)
         @children = []
-        update_children(Array(@descriptor.children).flatten)
       end
 
       def mount
         emit_patch(Patches::CreateElement[@id, @descriptor.type])
+        update_children(Array(@descriptor.children).flatten)
       end
 
       def unmount
@@ -244,15 +253,15 @@ module VDOM
         emit_patch(Patches::CreateTextNode[@id, @descriptor.to_s])
       end
 
-      def unmount
-        emit_patch(Patches::RemoveNode[@id])
-      end
-
       def update(new_descriptor)
         unless @descriptor.to_s == new_descriptor.to_s
           @descriptor = new_descriptor
           emit_patch(Patches::SetTextContent[@id, @descriptor.to_s])
         end
+      end
+
+      def unmount
+        emit_patch(Patches::RemoveNode[@id])
       end
 
       def to_s
