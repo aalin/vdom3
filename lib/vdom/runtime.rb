@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "async"
 require "async/barrier"
 require "async/queue"
@@ -7,17 +9,19 @@ require "pry"
 require_relative "patches"
 
 module VDOM
+  INCLUDE_DEBUG_ID = true
+
   class Runtime
     IdNode = Data.define(:id, :children) do
       def self.[](id, children = nil)
         new(id, children)
       end
 
-      def inspect
+      def serialize
         if c = children
-          "#{id} => #{c.inspect}"
+          {id:, children: c.flatten.map(&:serialize)}
         else
-          id
+          {id:}
         end
       end
     end
@@ -83,7 +87,7 @@ module VDOM
         in String | Numeric
           VText.new(descriptor.to_s, parent: self)
         in Array
-          VList.new(descriptor, parent: self)
+          VChildren.new(descriptor, parent: self)
         in Descriptors::Comment
           VComment.new(descriptor, parent: self)
         in NilClass
@@ -110,16 +114,15 @@ module VDOM
       end
 
       def dom_id_tree
-        @child&.dom_id_tree
+        @child&.dom_id_tree&.first
+      end
+
+      def update(descriptor)
+        @child = init_vnode(descriptor)
       end
 
       def mount
         @child&.mount
-      end
-
-      def patch(descriptor)
-        @child = init_vnode(descriptor)
-        @child.mount
       end
 
       def unmount
@@ -135,24 +138,33 @@ module VDOM
       def initialize(...)
         super(...)
 
-        @children = VList.new([], parent: self)
+        @instance = @descriptor.type.new(**@descriptor.props)
+        @children = VChildren.new(@instance.render, parent: self)
+      end
+
+      def mount
+        @children.mount
 
         @task = Async do
           queue = Async::Queue.new
 
-          instance = @descriptor.type.new(**@descriptor.props)
-
-          @children.update(instance.render)
-
-          instance.define_singleton_method(:rerender!) do
+          @instance.define_singleton_method(:rerender!) do
             queue.enqueue(:update!)
           end
 
+          @instance.mount
+
           loop do
             queue.wait
-            @children.update(instance.render)
+            @children.update(@instance.render)
           end
         end
+      end
+
+      def unmount
+        @children.unmount
+        @task&.stop
+        @instance.unmount
       end
 
       def traverse(&)
@@ -175,21 +187,36 @@ module VDOM
     end
 
     class VSlot < VNode
+      def initialize(...)
+        super
+        @children = VChildren.new(get_slotted(@descriptor.props[:name]), parent: self)
+      end
+
       def dom_id_tree
-        @child&.dom_id_tree
+        @children.dom_id_tree
+      end
+
+      def update(descriptor)
+        @descriptor = descriptor
+        @children.update(get_slotted(@descriptor.props[:name]))
       end
 
       def mount
-        @child = init_vnode(get_slotted(@descriptor.props[:name]))
-        @child.mount
+        @children.mount
+      end
+
+      def unmount
+        @children.unmount
       end
 
       def to_s
-        @child.to_s
+        @children.to_s
       end
     end
 
-    class VList < VNode
+    class VChildren < VNode
+      STRING_SEPARATOR = Descriptors::Comment[""]
+
       def initialize(...)
         super
         @children = []
@@ -199,6 +226,14 @@ module VDOM
       def dom_ids = @children.map(&:dom_ids).flatten
       def dom_id_tree = @children.map(&:dom_id_tree)
       def to_s = @children.join
+
+      def mount
+        @children.each(&:mount)
+      end
+
+      def unmount
+        @children.each(&:unmount)
+      end
 
       def traverse(&)
         yield self
@@ -214,7 +249,6 @@ module VDOM
             found
           else
             vnode = init_vnode(descriptor)
-            vnode.mount
             vnode
           end
         end.compact
@@ -228,8 +262,6 @@ module VDOM
 
       private
 
-      StringSeparator = Descriptors::Comment[""]
-
       def normalize_descriptors(descriptors)
         Array(descriptors)
           .flatten
@@ -242,7 +274,7 @@ module VDOM
         [nil, *descriptors].each_cons(2).map do |prev, descriptor|
           case [prev, descriptor]
           in String, String
-            [StringSeparator, descriptor]
+            [STRING_SEPARATOR, descriptor]
           else
             descriptor
           end
@@ -257,28 +289,27 @@ module VDOM
 
       def initialize(...)
         super
-      end
-
-      def children
-        @children ||= VList.new([], parent: self)
+        emit_patch(Patches::CreateElement[@id, @descriptor.type])
+        @children = VChildren.new([], parent: self)
+        @children.update(@descriptor.children)
       end
 
       def dom_id_tree
-        IdNode[@id, children.dom_id_tree]
+        IdNode[@id, @children.dom_id_tree]
       end
 
       def mount
-        emit_patch(Patches::CreateElement[@id, @descriptor.type])
-        children.update(@descriptor.children)
+        @children.mount
       end
 
       def unmount
+        @children.unmount
         emit_patch(Patches::RemoveNode[@id])
       end
 
       def update(descriptor)
         @descriptor = descriptor
-        children.update(@descriptor.children)
+        @children.update(@descriptor.children)
       end
 
       def traverse(&)
@@ -295,13 +326,16 @@ module VDOM
           )
         end.join
 
-        identifier = ' data-mayu-id="%s"' % @id
+        if INCLUDE_DEBUG_ID
+          identifier = ' data-mayu-id="%s"' % @id
+        end
+
         name = @descriptor.type.to_s.downcase.tr("_", "-")
 
         if VOID_ELEMENTS.include?(@descriptor.type)
           "<#{name}#{identifier}#{attributes}>"
         else
-          "<#{name}#{identifier}#{attributes}>#{children.to_s}</#{name}>"
+          "<#{name}#{identifier}#{attributes}>#{@children.to_s}</#{name}>"
         end
       end
 
@@ -309,7 +343,8 @@ module VDOM
 
       def update_children_order
         return unless @children
-        dom_ids = children.dom_ids
+
+        dom_ids = @children.dom_ids
 
         return if @dom_ids == dom_ids
 
@@ -318,7 +353,9 @@ module VDOM
     end
 
     class VText < VNode
-      def mount
+      ZERO_WIDTH_SPACE = "&ZeroWidthSpace;"
+      def initialize(...)
+        super
         emit_patch(Patches::CreateTextNode[@id, @descriptor.to_s])
       end
 
@@ -335,7 +372,7 @@ module VDOM
 
       def to_s
         if @descriptor.to_s.empty?
-          "&ZeroWidthSpace;"
+          ZERO_WIDTH_SPACE
         else
           CGI.escape_html(@descriptor.to_s)
         end
@@ -343,7 +380,8 @@ module VDOM
     end
 
     class VComment < VNode
-      def mount
+      def initialize(...)
+        super
         emit_patch(Patches::CreateCommentNode[@id, escape_comment(@descriptor)])
       end
 
@@ -368,10 +406,11 @@ module VDOM
     def initialize(task: Async::Task.current)
       @task = task
       @document = VDocument.new(nil, parent: self)
+      @patches = Async::Queue.new
     end
 
     def render(descriptor)
-      @document.patch(descriptor)
+      @document.update(descriptor)
     end
 
     def to_html =
@@ -381,7 +420,21 @@ module VDOM
       @document.dom_id_tree
 
     def emit_patch(patch)
-      puts "\e[34m#{patch}\e[0m"
+      @patches.enqueue(patch)
+    end
+
+    def clear_queue!
+      until @patches.empty?
+        puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
+      end
+    end
+
+    def mount
+      @document.mount
+    end
+
+    def dequeue
+      @patches.dequeue
     end
 
     def traverse(&)

@@ -1,7 +1,9 @@
 :ruby
   def initialize
     @count = 0
+  end
 
+  def mount
     async do
       loop do
         puts "Increasing count"

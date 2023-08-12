@@ -25,12 +25,28 @@ Sync do |task|
   end
 
   html = runtime.to_html
-  puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
-  puts runtime.dom_id_tree.inspect
+  formatted_html = SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
+  puts formatted_html
+  id_tree = runtime.dom_id_tree
+  p id_tree
+  runtime.clear_queue!
 
-  sleep 5
+  File.write("output.html", html)
+  File.write("output-formatted.html", formatted_html)
 
-  html = runtime.to_html
-  puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
-  puts runtime.dom_id_tree.inspect
+  task.async do
+    runtime.mount
+
+    File.open("events.js", "w") do |f|
+      f.puts "apply(['InitTree', #{JSON.generate(id_tree.serialize)}])"
+
+      35.times do |i|
+        patch = runtime.dequeue
+        puts "\e[32m#{i} \e[34m#{patch.inspect}\e[0m"
+        f.puts "apply(#{JSON.generate(VDOM::Patches.serialize(patch))})"
+      end
+    end
+  rescue => e
+    p e
+  end
 end
