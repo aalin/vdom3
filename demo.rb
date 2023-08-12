@@ -27,4 +27,10 @@ Sync do |task|
   html = runtime.to_html
   puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
   puts runtime.dom_id_tree.inspect
+
+  sleep 5
+
+  html = runtime.to_html
+  puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
+  puts runtime.dom_id_tree.inspect
 end

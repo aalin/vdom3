@@ -4,7 +4,7 @@ module VDOM
       def self.[](type, *children, key: nil, slot: nil, **props) =
         new(
           type,
-          normalize_children(children),
+          children,
           key,
           slot,
           props,
@@ -13,13 +13,6 @@ module VDOM
 
       def self.calculate_hash(type, key, slot, props) =
         [self.class, type, key, slot, type == :input && props[:type]].hash
-
-      def self.normalize_children(children) =
-        Array(children)
-          .flatten
-          .map { or_string(_1) }
-          .compact
-          .flatten
 
       def self.or_string(descriptor) =
         if self === descriptor
@@ -41,11 +34,12 @@ module VDOM
     end
 
     Text = Data.define(:content) do
-      def to_s = content
+      def to_s = content.to_s
       def same?(other) = self.class === other
     end
 
     Comment = Data.define(:content) do
+      def to_s = content.to_s
       def same?(other) = self.class === other
     end
 

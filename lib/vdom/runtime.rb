@@ -208,9 +208,7 @@ module VDOM
       def update(descriptors)
         grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
 
-        descriptors = Descriptors::Element.normalize_children(descriptors)
-
-        new_children = descriptors.map do |descriptor|
+        new_children = normalize_descriptors(descriptors).map do |descriptor|
           if found = grouped[Descriptors.get_hash(descriptor)]&.shift
             found.update(descriptor)
             found
@@ -226,6 +224,29 @@ module VDOM
         @parent.update_children_order
 
         grouped.values.flatten.each(&:unmount)
+      end
+
+      private
+
+      StringSeparator = Descriptors::Comment[""]
+
+      def normalize_descriptors(descriptors)
+        Array(descriptors)
+          .flatten
+          .map { Descriptors::Element.or_string(_1) }
+          .compact
+          .then { insert_comments_between_strings(_1) }
+      end
+
+      def insert_comments_between_strings(descriptors)
+        [nil, *descriptors].each_cons(2).map do |prev, descriptor|
+          case [prev, descriptor]
+          in String, String
+            [StringSeparator, descriptor]
+          else
+            descriptor
+          end
+        end.flatten
       end
     end
 
@@ -322,8 +343,26 @@ module VDOM
     end
 
     class VComment < VNode
+      def mount
+        emit_patch(Patches::CreateCommentNode[@id, escape_comment(@descriptor)])
+      end
+
+      def update(descriptor)
+        unless @descriptor.to_s == descriptor.to_s
+          @descriptor = descriptor
+          emit_patch(Patches::SetTextContent[@id, escape_comment(descriptor.to_s)])
+        end
+      end
+
+      def unmount
+        emit_patch(Patches::RemoveNode[@id])
+      end
+
       def to_s =
-        "<!-- #{CGI.escape_html(@descriptor.content)} -->"
+        "<!--#{escape_comment(@descriptor.content)}-->"
+
+      def escape_comment(str) =
+        str.to_s.gsub(/--/, '&#45;&#45;')
     end
 
     def initialize(task: Async::Task.current)
