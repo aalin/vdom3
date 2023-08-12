@@ -34,12 +34,15 @@ module VDOM
         @id = VNode.generate_id
       end
 
+      def traverse(&)
+        yield self
+      end
+
       def inspect
         "#<#{self.class.name}##{@id} descriptor=#{@descriptor.inspect}>"
       end
 
-      def dom_id =
-        @id
+      def dom_ids = [@id]
 
       def dom_id_tree
         IdNode[@id]
@@ -57,6 +60,9 @@ module VDOM
       def task
         @parent.task
       end
+
+      def update_children_order =
+        @parent.update_children_order
 
       def parent_element_id =
         @parent.parent_element_id
@@ -76,19 +82,15 @@ module VDOM
           VText.new(descriptor, parent: self)
         in String | Numeric
           VText.new(descriptor.to_s, parent: self)
+        in Array
+          VList.new(descriptor, parent: self)
         in Descriptors::Comment
           VComment.new(descriptor, parent: self)
-        in Array
-          VElement.new(Descriptors::H[:mayu_fragment, *descriptor], parent: self)
         in NilClass
           nil
         else
           raise "Unhandled descriptor: #{descriptor.inspect}"
         end
-      end
-
-      def update_children_order
-        @parent.update_children_order
       end
 
       protected
@@ -133,12 +135,14 @@ module VDOM
       def initialize(...)
         super(...)
 
+        @children = VList.new([], parent: self)
+
         @task = Async do
           queue = Async::Queue.new
 
           instance = @descriptor.type.new(**@descriptor.props)
 
-          update_child(instance.render)
+          @children.update(instance.render)
 
           instance.define_singleton_method(:rerender!) do
             queue.enqueue(:update!)
@@ -146,21 +150,19 @@ module VDOM
 
           loop do
             queue.wait
-            update_child(instance.render)
+            @children.update(instance.render)
           end
         end
       end
 
-      def dom_id =
-        @child&.dom_id
-
-      def dom_id_tree
-        @child&.dom_id_tree
+      def traverse(&)
+        yield self
+        @children.traverse(&)
       end
 
-      def to_s
-        @child.to_s
-      end
+      def dom_ids = @children.dom_ids
+      def dom_id_tree = @children.dom_id_tree
+      def to_s = @children.to_s
 
       def update(new_descriptor)
         new_descriptor => Descriptors::Element[type: ^(@descriptor.type)]
@@ -170,25 +172,9 @@ module VDOM
       def get_slotted(name)
         Descriptors.group_by_slot(@descriptor.children)[name]
       end
-
-      protected
-
-      def update_child(new_child)
-        if Descriptors.same?(@child&.descriptor, new_child)
-          @child.update(new_child)
-        else
-          @child&.unmount
-          @child = new_child ? init_vnode(new_child).tap(&:mount) : nil
-          update_children_order
-        end
-      end
     end
 
     class VSlot < VNode
-      def initialize(...)
-        super
-      end
-
       def dom_id_tree
         @child&.dom_id_tree
       end
@@ -203,23 +189,66 @@ module VDOM
       end
     end
 
+    class VList < VNode
+      def initialize(...)
+        super
+        @children = []
+        update(@descriptor)
+      end
+
+      def dom_ids = @children.map(&:dom_ids).flatten
+      def dom_id_tree = @children.map(&:dom_id_tree)
+      def to_s = @children.join
+
+      def traverse(&)
+        yield self
+        @children.traverse(&)
+      end
+
+      def update(descriptors)
+        grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
+
+        descriptors = Descriptors::Element.normalize_children(descriptors)
+
+        new_children = descriptors.map do |descriptor|
+          if found = grouped[Descriptors.get_hash(descriptor)]&.shift
+            found.update(descriptor)
+            found
+          else
+            vnode = init_vnode(descriptor)
+            vnode.mount
+            vnode
+          end
+        end.compact
+
+        @children = new_children
+
+        @parent.update_children_order
+
+        grouped.values.flatten.each(&:unmount)
+      end
+    end
+
     class VElement < VNode
       VOID_ELEMENTS = %i[
         area base br col embed hr img input link meta param source track wbr
       ]
 
       def initialize(...)
-        super(...)
-        @children = []
+        super
+      end
+
+      def children
+        @children ||= VList.new([], parent: self)
       end
 
       def dom_id_tree
-        IdNode[@id, @children.map(&:dom_id_tree).compact]
+        IdNode[@id, children.dom_id_tree]
       end
 
       def mount
         emit_patch(Patches::CreateElement[@id, @descriptor.type])
-        update_children(Array(@descriptor.children).flatten)
+        children.update(@descriptor.children)
       end
 
       def unmount
@@ -228,7 +257,12 @@ module VDOM
 
       def update(descriptor)
         @descriptor = descriptor
-        update_children(Array(@descriptor.children).flatten)
+        children.update(@descriptor.children)
+      end
+
+      def traverse(&)
+        yield self
+        @children.traverse(&)
       end
 
       def to_s
@@ -246,41 +280,19 @@ module VDOM
         if VOID_ELEMENTS.include?(@descriptor.type)
           "<#{name}#{identifier}#{attributes}>"
         else
-          "<#{name}#{identifier}#{attributes}>#{@children.join}</#{name}>"
+          "<#{name}#{identifier}#{attributes}>#{children.to_s}</#{name}>"
         end
       end
 
+      def parent_dom_id = @id
+
       def update_children_order
-        dom_ids = @children.map(&:dom_id)
+        return unless @children
+        dom_ids = children.dom_ids
 
         return if @dom_ids == dom_ids
 
         emit_patch(Patches::ReplaceChildren[@id, @dom_ids = dom_ids])
-      end
-
-      private
-
-      def parent_element_id = @id
-
-      def update_children(descriptors)
-        grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
-
-        new_children = Array(descriptors).map.with_index do |descriptor|
-          if found = grouped[Descriptors.get_hash(descriptor)]&.shift
-            found.update(descriptor)
-            found
-          else
-            vnode = init_vnode(descriptor)
-            vnode.mount
-            vnode
-          end
-        end.compact
-
-        @children = new_children
-
-        update_children_order
-
-        grouped.values.flatten.each(&:unmount)
       end
     end
 
@@ -331,6 +343,10 @@ module VDOM
 
     def emit_patch(patch)
       puts "\e[34m#{patch}\e[0m"
+    end
+
+    def traverse(&)
+      @document.traverse(&)
     end
   end
 end

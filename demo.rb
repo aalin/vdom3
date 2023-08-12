@@ -17,9 +17,13 @@ Sync do |task|
   task.async do
     runtime.render(H[Layout, H[Component]])
   end
-  puts "rendered"
 
   sleep 0.5
+
+  runtime.traverse do |node|
+    p node.class.name
+  end
+
   html = runtime.to_html
   puts SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
   puts runtime.dom_id_tree.inspect

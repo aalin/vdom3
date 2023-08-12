@@ -19,6 +19,7 @@ module VDOM
           .flatten
           .map { or_string(_1) }
           .compact
+          .flatten
 
       def self.or_string(descriptor) =
         if self === descriptor
