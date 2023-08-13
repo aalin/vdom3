@@ -4,7 +4,7 @@
 # License: AGPL-3.0
 
 module VDOM
-  class InlineStyle
+  module InlineStyle
     # CSS properties which accept numbers but are not in units of "px".
     # Copied from React:
     # https://github.com/facebook/react/blob/a7c57268fb71163e4abb5e386c0d0e63290baaae/packages/react-dom/src/shared/CSSProperty.js
@@ -54,22 +54,15 @@ module VDOM
       stroke_width
     ].freeze
 
-    def initialize(properties)
-      @properties = properties
-    end
-
-    def to_s
-      @properties.map do |property, value|
+    def self.stringify(properties)
+      properties.map do |property, value|
         "#{format_property(property)}:#{format_value(property, value)};"
       end.join
     end
 
-    def keys
-    end
-
-    def diff(dom_id, new_properties)
-      @properties.keys.union(new_properties.keys).map do |property|
-        old_value = @properties[property]
+    def self.diff(dom_id, old_properties, new_properties)
+      old_properties.keys.union(new_properties.keys).map do |property|
+        old_value = old_properties[property]
         new_value = new_properties[property]
 
         next if old_value == new_value
@@ -87,13 +80,11 @@ module VDOM
       end.compact
     end
 
-    private
-
-    def format_property(property)
+    def self.format_property(property)
       property.to_s.tr("_", "-")
     end
 
-    def format_value(property, value)
+    def self.format_value(property, value)
       if should_apply_px?(property, value)
         "#{value}px"
       else
@@ -101,7 +92,7 @@ module VDOM
       end
     end
 
-    def should_apply_px?(property, value)
+    def self.should_apply_px?(property, value)
       return false unless Integer === value
       return false if UNITLESS_PROPERTIES.include?(property)
       return false if property.start_with?("__")

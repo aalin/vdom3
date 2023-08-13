@@ -312,7 +312,7 @@ module VDOM
       end
 
       def update(new_descriptor)
-        patch_attributes(@descriptor.props, new_descriptor.props)
+        update_attributes(@descriptor.props, new_descriptor.props)
         @descriptor = new_descriptor
         @children.update(@descriptor.children)
       end
@@ -325,7 +325,7 @@ module VDOM
       def to_s
         attributes = @descriptor.props.map do |prop, value|
           if prop == :style && value.is_a?(Hash)
-            value = InlineStyle.new(value).to_s
+            value = InlineStyle.stringify(value)
           end
 
           format(
@@ -362,7 +362,7 @@ module VDOM
 
       private
 
-      def patch_attributes(old_props, new_props)
+      def update_attributes(old_props, new_props)
         removed = new_props.keys.difference(old_props.keys)
 
         new_props.each do |attr, value|
@@ -373,8 +373,8 @@ module VDOM
             next
           end
 
-          if attr == :style
-            InlineStyle.new(old_props[attr]).diff(@id, value) do |patch|
+          if attr == :style && Hash == value
+            InlineStyle.diff(@id, old_props[attr], value) do |patch|
               emit_patch(patch)
             end
 
