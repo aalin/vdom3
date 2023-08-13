@@ -31,6 +31,9 @@ Sync do |task|
   p id_tree
   runtime.clear_queue!
 
+  File.write("dump.marshal", Marshal.dump(runtime))
+  runtime = Marshal.load(File.read("dump.marshal"))
+
   File.write("output.html", html.sub("</html>", '<script type="module">import "./events.js"</script>\0'))
   File.write("output-formatted.html", formatted_html)
 

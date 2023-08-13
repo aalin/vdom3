@@ -149,20 +149,7 @@ module VDOM
       def mount
         @children.mount
 
-        @task = Async do
-          queue = Async::Queue.new
-
-          @instance.define_singleton_method(:rerender!) do
-            queue.enqueue(:update!)
-          end
-
-          @instance.mount
-
-          loop do
-            queue.wait
-            @children.update(@instance.render)
-          end
-        end
+        @task = init_task
       end
 
       def unmount
@@ -187,6 +174,33 @@ module VDOM
 
       def get_slotted(name)
         Descriptors.group_by_slot(@descriptor.children)[name]
+      end
+
+      def marshal_dump
+        [@id, @parent, @children, @descriptor, @instance]
+      end
+
+      def marshal_load(a)
+        @id, @parent, @children, @descriptor, @instance = a
+      end
+
+      private
+
+      def init_task
+        Async do
+          queue = Async::Queue.new
+
+          @instance.define_singleton_method(:rerender!) do
+            queue.enqueue(:update!)
+          end
+
+          @instance.mount
+
+          loop do
+            queue.wait
+            @children.update(@instance.render)
+          end
+        end
       end
     end
 
@@ -481,6 +495,16 @@ module VDOM
 
     def traverse(&)
       @document.traverse(&)
+    end
+
+    def marshal_dump
+      [@document]
+    end
+
+    def marshal_load(a)
+      @document = a.first
+      @task = Async::Task.current
+      @patches = Async::Queue.new
     end
   end
 end
