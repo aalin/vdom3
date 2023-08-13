@@ -44,9 +44,10 @@ Sync do |task|
 
       f.puts "function sleep(milliseconds) { return new Promise((resolve) => setTimeout(resolve, milliseconds)) }"
 
-      last_update = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+      start = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
+      last_update = start
 
-      50.times do |i|
+      0.upto(Float::INFINITY) do |i|
         patch = runtime.dequeue
         puts "\e[32m#{i} \e[34m#{patch.inspect}\e[0m"
 
@@ -55,8 +56,9 @@ Sync do |task|
         last_update = now
 
         f.puts "await sleep(#{diff})"
-        f.puts "runtime.#{patch.class.name.split('::').last}(#{patch.deconstruct.map {JSON.generate(_1)}.join(", ")})"
-        # f.puts "runtime.apply(#{JSON.generate(VDOM::Patches.serialize(patch))})"
+        f.puts "runtime.apply(#{JSON.generate(VDOM::Patches.serialize(patch))})"
+
+        break if now - start > 15_000
       end
     end
   rescue => e

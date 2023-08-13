@@ -15,6 +15,7 @@
 
 %div
   %output= @count
+  %h1{style: { font_size: @count * 4, transition: "font-size 500ms", margin: 0 }} cou#{@count / 2}nter
   = if @count in 3..12
     %h2 HELLO! #{@count}
   = if @count in 5..10

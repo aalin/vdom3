@@ -7,6 +7,7 @@ require "securerandom"
 require "pry"
 
 require_relative "patches"
+require_relative "inline_style"
 
 module VDOM
   INCLUDE_DEBUG_ID = true
@@ -307,8 +308,9 @@ module VDOM
         emit_patch(Patches::RemoveNode[@id])
       end
 
-      def update(descriptor)
-        @descriptor = descriptor
+      def update(new_descriptor)
+        patch_attributes(@descriptor.props, new_descriptor.props)
+        @descriptor = new_descriptor
         @children.update(@descriptor.children)
       end
 
@@ -319,6 +321,10 @@ module VDOM
 
       def to_s
         attributes = @descriptor.props.map do |prop, value|
+          if prop == :style && value.is_a?(Hash)
+            value = InlineStyle.new(value).to_s
+          end
+
           format(
             ' %s="%s"',
             CGI.escape_html(prop.to_s.tr("_", "-")),
@@ -349,6 +355,39 @@ module VDOM
         return if @dom_ids == dom_ids
 
         emit_patch(Patches::ReplaceChildren[@id, @dom_ids = dom_ids])
+      end
+
+      private
+
+      def patch_attributes(old_props, new_props)
+        removed = new_props.keys.difference(old_props.keys)
+
+        new_props.each do |attr, value|
+          next if old_props[attr] == value
+
+          if !value || value == ""
+            removed.push(attr)
+            next
+          end
+
+          if attr == :style
+            InlineStyle.new(old_props[attr]).diff(@id, value) do |patch|
+              emit_patch(patch)
+            end
+
+            next
+          end
+
+          if value == true
+            emit_patch(Patches::SetAttribute[@id, attr.to_s, ""])
+          else
+            emit_patch(Patches::SetAttribute[@id, attr.to_s, value.to_s])
+          end
+        end
+
+        removed.each do |attr|
+          emit_patch(Patches::RemoveAttribute[@id, attr.to_s])
+        end
       end
     end
 

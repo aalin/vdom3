@@ -1,70 +1,83 @@
-export default class Runtime {
-  constructor(root) {
-    this.nodes = {}
+const Patches = {
+  CreateElement(id, type) {
+    this.setNode(id, document.createElement(type));
+  },
+  CreateTextNode(id, content) {
+    this.setNode(id, document.createTextNode(content));
+  },
+  CreateComment(id, content) {
+    this.setNode(id, document.createComment(content));
+  },
+  RemoveNode(id) {
+    this.deleteNode(id);
+  },
+  SetAttribute(id, name, value) {
+    this.getNode(id).setAttribute(name, value);
+  },
+  RemoveAttribute(id, name) {
+    this.getNode(id).removeAttribute(name);
+  },
+  SetCSSProperty(id, name, value) {
+    console.debug("SetCSSProperty", id, name, value);
+    this.getNode(id).style.setProperty(name, value);
+  },
+  RemoveCSSProperty(id, name) {
+    this.getNode(id).style.removeProperty(name);
+  },
+  SetTextContent(id, content) {
+    this.getNode(id).data = content;
+  },
+  ReplaceChildren(id, childIds) {
+    this.getNode(id).replaceChildren(...this.getNodes(childIds));
+  },
+};
 
-    const visit = (node, idNode) => {
-      if (!node) return
-      this.nodes[idNode.id] = node
-      console.log(idNode.children)
-      if (!idNode.children) return
-      idNode.children.forEach((child, i) => {
-        console.log(child, node.childNodes[i])
-        visit(node.childNodes[i], child)
-      })
-    }
+class NodeSet {
+  #nodes = {};
 
-    visit(document.documentElement, root)
-    console.log("Nodes", this.nodes)
+  deleteNode(id) {
+    console.debug("deleteNode", id)
+    delete this.#nodes[id];
+  }
+
+  setNode(id, node) {
+    console.debug("setNode", id)
+    this.#nodes[id] = node;
   }
 
   getNode(id) {
-    const node = this.nodes[id]
+    const node = this.#nodes[id];
 
     if (!node) {
-      throw new Error(`Node not found: ${id}`)
+      throw new Error(`Node not found: ${id}`);
     }
 
-    return node
+    return node;
   }
 
-  CreateElement(id, type) {
-    this.nodes[id] = document.createElement(type)
+  getNodes(ids) {
+    return ids.map((id) => this.getNode(id));
+  }
+}
+
+export default class Runtime {
+  #nodeSet = new NodeSet();
+
+  constructor(tree) {
+    const visit = (domNode, idNode) => {
+      if (!domNode) return;
+      this.#nodeSet.setNode(idNode.id, domNode);
+      if (!idNode.children) return;
+      idNode.children.forEach((child, i) => {
+        visit(domNode.childNodes[i], child);
+      });
+    };
+
+    visit(document.documentElement, tree);
   }
 
-  CreateTextNode(id, content) {
-    this.nodes[id] = document.createTextNode(content)
-  }
-
-  CreateComment(id, content) {
-    this.nodes[id] = document.createComment(content)
-  }
-
-  RemoveNode(id) {
-    delete this.nodes[id]
-  }
-
-  SetAttribute(id, name, value) {
-    this.nodes[id].setAttribute(name, value)
-  }
-
-  RemoveAttribute(id, name) {
-    this.nodes[id].removeAttribute(name)
-  }
-
-  SetCSSProperty(id, name, value) {
-    this.nodes[id].styles.setProperty(name, value)
-  }
-
-  RemoveCSSProperty(id, name) {
-    this.nodes[id].styles.removeProperty(name)
-  }
-
-  SetTextContent(id, content) {
-    this.nodes[id].data = content
-  }
-
-  ReplaceChildren(id, childIds) {
-    const children = childIds.map((childId) => this.nodes[childId])
-    this.nodes[id].replaceChildren(...children)
+  apply(patch) {
+    const [name, ...args] = patch;
+    Patches[name].apply(this.#nodeSet, args);
   }
 }
