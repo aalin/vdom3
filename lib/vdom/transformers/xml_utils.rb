@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Copyright Andreas Alin <andreas.alin@gmail.com>
+# Released under AGPL-3.0
+
 require "strscan"
 
 module VDOM

@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Copyright Andreas Alin <andreas.alin@gmail.com>
+# License: AGPL-3.0
+
 require "pathname"
 require_relative "transformers/haml"
 require_relative "transformers/ruby"

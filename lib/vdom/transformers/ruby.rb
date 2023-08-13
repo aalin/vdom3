@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Copyright Andreas Alin <andreas.alin@gmail.com>
+# License: AGPL-3.0
+
 require "syntax_tree"
 require_relative "mutation_visitor"
 require_relative "xml_utils"

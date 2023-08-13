@@ -1,3 +1,8 @@
+# frozen_string_literal: true
+
+# Copyright Andreas Alin <andreas.alin@gmail.com>
+# Released under AGPL-3.0
+
 require "base64"
 require "digest/sha2"
 
