@@ -382,7 +382,7 @@ module VDOM
     class VComment < VNode
       def initialize(...)
         super
-        emit_patch(Patches::CreateCommentNode[@id, escape_comment(@descriptor)])
+        emit_patch(Patches::CreateComment[@id, escape_comment(@descriptor)])
       end
 
       def update(descriptor)

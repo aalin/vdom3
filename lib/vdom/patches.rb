@@ -6,9 +6,8 @@ module VDOM
     DestroyRoot = Data.define
 
     CreateElement = Data.define(:id, :type)
-    CreateDocumentFragment = Data.define(:id)
     CreateTextNode = Data.define(:id, :content)
-    CreateCommentNode = Data.define(:id, :content)
+    CreateComment = Data.define(:id, :content)
 
     ReplaceChildren = Data.define(:parent_id, :child_ids)
 

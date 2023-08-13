@@ -15,9 +15,9 @@
 
 %div
   %output= @count
+  = if @count in 3..12
+    %h2 HELLO! #{@count}
   = if @count in 5..10
-    %h2 HELLO!
-  = if @count in 7..9
-    = ["foo", @count == 5 ? "bar" : nil, "baz"].compact
+    = ["foo", (@count in 7..9) ? "bar" : nil, "baz"].compact
   = if @count == 8
     hopp
