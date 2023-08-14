@@ -16,11 +16,14 @@ export default class Runtime {
         visit(domNode.childNodes[i], child);
       });
     };
+
+    visit(document.documentElement, tree)
   }
 
   apply(patches) {
     patches.forEach((patch) => {
       const [name, ...args] = patch;
+      console.log(name, args)
       Patches[name].apply(this.#nodeSet, args);
     })
   }
