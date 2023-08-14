@@ -51,15 +51,18 @@ Sync do |task|
       last_update = start
 
       0.upto(Float::INFINITY) do |i|
-        patch = runtime.dequeue
-        puts "\e[32m#{i} \e[34m#{patch.inspect}\e[0m"
+        patches = runtime.dequeue
+        patches.each do
+          puts "\e[32m#{i} \e[34m#{_1.inspect}\e[0m"
+        end
 
         now = Process.clock_gettime(Process::CLOCK_MONOTONIC, :millisecond)
         diff = now - last_update
         last_update = now
 
         f.puts "await sleep(#{diff})"
-        f.puts "runtime.apply(#{JSON.generate(VDOM::Patches.serialize(patch))})"
+        serialized_patches = patches.map { VDOM::Patches.serialize(_1) }
+        f.puts "runtime.apply(#{JSON.generate(serialized_patches)})"
 
         break if now - start > 15_000
       end

@@ -1,6 +1,9 @@
 // Copyright Andreas Alin <andreas.alin@gmail.com>
 // License: AGPL-3.0
 
+const startViewTransition =
+  document.startViewTransition?.bind(document) || ((cb) => cb())
+
 export default class Runtime {
   #nodeSet = new NodeSet();
 
@@ -13,13 +16,13 @@ export default class Runtime {
         visit(domNode.childNodes[i], child);
       });
     };
-
-    visit(document.documentElement, tree);
   }
 
-  apply(patch) {
-    const [name, ...args] = patch;
-    Patches[name].apply(this.#nodeSet, args);
+  apply(patches) {
+    patches.forEach((patch) => {
+      const [name, ...args] = patch;
+      Patches[name].apply(this.#nodeSet, args);
+    })
   }
 }
 

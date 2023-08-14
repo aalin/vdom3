@@ -35,11 +35,17 @@ module VDOM
         SecureRandom.alphanumeric(10)
 
       attr_reader :descriptor
+      attr_reader :root
 
       def initialize(descriptor, parent: nil)
         @descriptor = descriptor
         @parent = parent
+        @root = parent.root
         @id = VNode.generate_id
+      end
+
+      def patch(&)
+        @root.patch(&)
       end
 
       def traverse(&)
@@ -57,9 +63,6 @@ module VDOM
       end
 
       def mount
-      end
-
-      def patch(descriptor)
       end
 
       def unmount
@@ -104,7 +107,9 @@ module VDOM
       protected
 
       def emit_patch(patch)
-        @parent.emit_patch(patch)
+        patch do |patches|
+          patches << patch
+        end
       end
     end
 
@@ -122,7 +127,9 @@ module VDOM
       end
 
       def update(descriptor)
-        @child = init_vnode(descriptor)
+        patch do
+          @child = init_vnode(descriptor)
+        end
       end
 
       def mount
@@ -259,23 +266,25 @@ module VDOM
       end
 
       def update(descriptors)
-        grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
+        patch do
+          grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
 
-        new_children = normalize_descriptors(descriptors).map do |descriptor|
-          if found = grouped[Descriptors.get_hash(descriptor)]&.shift
-            found.update(descriptor)
-            found
-          else
-            vnode = init_vnode(descriptor)
-            vnode
-          end
-        end.compact
+          new_children = normalize_descriptors(descriptors).map do |descriptor|
+            if found = grouped[Descriptors.get_hash(descriptor)]&.shift
+              found.update(descriptor)
+              found
+            else
+              vnode = init_vnode(descriptor)
+              vnode
+            end
+          end.compact
 
-        @children = new_children
+          @children = new_children
 
-        @parent.update_children_order
+          @parent.update_children_order
 
-        grouped.values.flatten.each(&:unmount)
+          grouped.values.flatten.each(&:unmount)
+        end
       end
 
       private
@@ -307,9 +316,12 @@ module VDOM
 
       def initialize(...)
         super
-        emit_patch(Patches::CreateElement[@id, @descriptor.type])
-        @children = VChildren.new([], parent: self)
-        @children.update(@descriptor.children)
+
+        patch do |patches|
+          patches << Patches::CreateElement[@id, @descriptor.type]
+          @children = VChildren.new([], parent: self)
+          @children.update(@descriptor.children)
+        end
       end
 
       def dom_id_tree
@@ -321,14 +333,18 @@ module VDOM
       end
 
       def unmount
-        @children.unmount
-        emit_patch(Patches::RemoveNode[@id])
+        patch do |patches|
+          @children.unmount
+          patches << Patches::RemoveNode[@id]
+        end
       end
 
       def update(new_descriptor)
-        update_attributes(@descriptor.props, new_descriptor.props)
-        @descriptor = new_descriptor
-        @children.update(@descriptor.children)
+        patch do
+          update_attributes(@descriptor.props, new_descriptor.props)
+          @descriptor = new_descriptor
+          @children.update(@descriptor.children)
+        end
       end
 
       def traverse(&)
@@ -371,39 +387,43 @@ module VDOM
 
         return if @dom_ids == dom_ids
 
-        emit_patch(Patches::ReplaceChildren[@id, @dom_ids = dom_ids])
+        patch do |patches|
+          patches << Patches::ReplaceChildren[@id, @dom_ids = dom_ids]
+        end
       end
 
       private
 
       def update_attributes(old_props, new_props)
-        removed = new_props.keys.difference(old_props.keys)
+        patch do |patches|
+          removed = new_props.keys.difference(old_props.keys)
 
-        new_props.each do |attr, value|
-          next if old_props[attr] == value
+          new_props.each do |attr, value|
+            next if old_props[attr] == value
 
-          if !value || value == ""
-            removed.push(attr)
-            next
-          end
-
-          if attr == :style && Hash == value
-            InlineStyle.diff(@id, old_props[attr], value) do |patch|
-              emit_patch(patch)
+            if !value || value == ""
+              removed.push(attr)
+              next
             end
 
-            next
+            if attr == :style && Hash == value
+              InlineStyle.diff(@id, old_props[attr], value) do |patch|
+                patches << patch
+              end
+
+              next
+            end
+
+            if value == true
+              patches << Patches::SetAttribute[@id, attr.to_s, ""]
+            else
+              patches << Patches::SetAttribute[@id, attr.to_s, value.to_s]
+            end
           end
 
-          if value == true
-            emit_patch(Patches::SetAttribute[@id, attr.to_s, ""])
-          else
-            emit_patch(Patches::SetAttribute[@id, attr.to_s, value.to_s])
+          removed.each do |attr|
+            patches << Patches::RemoveAttribute[@id, attr.to_s]
           end
-        end
-
-        removed.each do |attr|
-          emit_patch(Patches::RemoveAttribute[@id, attr.to_s])
         end
       end
     end
@@ -412,18 +432,24 @@ module VDOM
       ZERO_WIDTH_SPACE = "&ZeroWidthSpace;"
       def initialize(...)
         super
-        emit_patch(Patches::CreateTextNode[@id, @descriptor.to_s])
+        patch do |patches|
+          patches << Patches::CreateTextNode[@id, @descriptor.to_s]
+        end
       end
 
       def update(new_descriptor)
         unless @descriptor.to_s == new_descriptor.to_s
           @descriptor = new_descriptor
-          emit_patch(Patches::SetTextContent[@id, @descriptor.to_s])
+          patch do |patches|
+            patches << Patches::SetTextContent[@id, @descriptor.to_s]
+          end
         end
       end
 
       def unmount
-        emit_patch(Patches::RemoveNode[@id])
+        patch do |patches|
+          patches << Patches::RemoveNode[@id]
+        end
       end
 
       def to_s
@@ -438,18 +464,24 @@ module VDOM
     class VComment < VNode
       def initialize(...)
         super
-        emit_patch(Patches::CreateComment[@id, escape_comment(@descriptor)])
+        patch do |patches|
+          patches << Patches::CreateComment[@id, escape_comment(@descriptor)]
+        end
       end
 
       def update(descriptor)
         unless @descriptor.to_s == descriptor.to_s
           @descriptor = descriptor
-          emit_patch(Patches::SetTextContent[@id, escape_comment(descriptor.to_s)])
+          patch do |patches|
+            patches << Patches::SetTextContent[@id, escape_comment(descriptor.to_s)]
+          end
         end
       end
 
       def unmount
-        emit_patch(Patches::RemoveNode[@id])
+        patch do |patches|
+          patches << Patches::RemoveNode[@id]
+        end
       end
 
       def to_s =
@@ -457,6 +489,22 @@ module VDOM
 
       def escape_comment(str) =
         str.to_s.gsub(/--/, '&#45;&#45;')
+    end
+
+    class PatchSet
+      include Enumerable
+
+      def initialize
+        @patches = []
+      end
+
+      def each(&) =
+        @patches.each(&)
+
+      def push(patch) =
+        @patches.push(patch)
+
+      alias << push
     end
 
     def initialize(task: Async::Task.current)
@@ -475,10 +523,6 @@ module VDOM
     def dom_id_tree =
       @document.dom_id_tree
 
-    def emit_patch(patch)
-      @patches.enqueue(patch)
-    end
-
     def clear_queue!
       until @patches.empty?
         puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
@@ -495,6 +539,26 @@ module VDOM
 
     def traverse(&)
       @document.traverse(&)
+    end
+
+    def root = self
+
+    def patch(&)
+      raise ArgumentError, "No block given" unless block_given?
+
+      if @patch_set
+        yield @patch_set
+        return
+      end
+
+      begin
+        @patch_set = PatchSet.new
+        yield @patch_set
+      ensure
+        patch_set = @patch_set
+        @patch_set = nil
+        @patches.enqueue(patch_set.to_a)
+      end
     end
 
     def marshal_dump
