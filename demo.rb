@@ -28,7 +28,7 @@ Sync do |task|
   formatted_html = SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
   puts formatted_html
   id_tree = runtime.dom_id_tree
-  p id_tree
+  p(id_tree:)
   runtime.clear_queue!
 
   File.write("dump.marshal", Marshal.dump(runtime))

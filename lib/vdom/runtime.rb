@@ -16,19 +16,19 @@ require_relative "patches"
 require_relative "inline_style"
 
 module VDOM
-  INCLUDE_DEBUG_ID = false
+  INCLUDE_DEBUG_ID = true
 
   class Runtime
-    IdNode = Data.define(:id, :children) do
-      def self.[](id, children = nil)
-        new(id, children)
+    IdNode = Data.define(:id, :name, :children) do
+      def self.[](id, name, children = nil)
+        new(id, name, children)
       end
 
       def serialize
         if c = children
-          { id:, children: c.flatten.map(&:serialize) }
+          { id:, name:, children: c.flatten.map(&:serialize) }
         else
-          { id: }
+          { id:, name:, }
         end
       end
     end
@@ -59,7 +59,7 @@ module VDOM
       def dom_ids =
         [@id]
       def dom_id_tree =
-        IdNode[@id]
+        IdNode[@id, dom_node_name]
 
       def mount =
         nil
@@ -105,28 +105,28 @@ module VDOM
     class VDocument < VNode
       def initialize(...)
         super
+        @children = VChildren.new([@descriptor], parent: self)
       end
 
       def to_s
-        "<!doctype html>\n#{@child.to_s}"
+        "<!doctype html>\n#{@children.to_s}"
       end
 
-      def dom_id_tree
-        @child&.dom_id_tree&.first
-      end
+      def dom_id_tree =
+        @children.dom_id_tree.first.first
 
       def update(descriptor)
         patch do
-          @child = init_child_vnode(descriptor)
+          @children.update([descriptor])
         end
       end
 
       def mount
-        @child&.mount
+        @children.mount
       end
 
       def unmount
-        @child&.unmount
+        @children.unmount
       end
 
       def update_children_order
@@ -164,8 +164,8 @@ module VDOM
       def to_s = @children.to_s
 
       def update(new_descriptor)
-        new_descriptor => Descriptors::Element[type: ^(@descriptor.type)]
         @descriptor = new_descriptor
+        @children.update(@instance.render)
       end
 
       def get_slotted(name)
@@ -206,9 +206,7 @@ module VDOM
         @children = VChildren.new(get_slotted(@descriptor.props[:name]), parent: self)
       end
 
-      def dom_id_tree
-        @children.dom_id_tree
-      end
+      def dom_id_tree = @children.dom_id_tree
 
       def update(descriptor)
         @descriptor = descriptor
@@ -313,13 +311,13 @@ module VDOM
         end
       end
 
-      def dom_id_tree
-        IdNode[@id, @children.dom_id_tree]
-      end
+      def dom_id_tree =
+        IdNode[@id, dom_node_name, @children.dom_id_tree]
+      def dom_node_name =
+        @descriptor.type.to_s.upcase
 
-      def mount
+      def mount =
         @children.mount
-      end
 
       def unmount
         patch do |patches|
@@ -395,7 +393,11 @@ module VDOM
               next
             end
 
-            if attr == :style && Hash == value
+            if attr == :style
+              unless value.is_a?(Hash)
+                raise "style-prop has to be a hash"
+              end
+
               InlineStyle.diff(@id, old_props[attr], value) do |patch|
                 patches << patch
               end
@@ -448,6 +450,9 @@ module VDOM
           CGI.escape_html(@descriptor.to_s)
         end
       end
+
+      def dom_node_name =
+        "#text"
     end
 
     class VComment < VNode
@@ -476,6 +481,11 @@ module VDOM
       def to_s =
         "<!--#{escape_comment(@descriptor.content)}-->"
 
+      def dom_node_name =
+        "#comment"
+
+      private
+
       def escape_comment(str) =
         str.to_s.gsub(/--/, '&#45;&#45;')
     end
@@ -498,8 +508,8 @@ module VDOM
 
     def initialize(task: Async::Task.current)
       @task = task
-      @document = VDocument.new(nil, parent: self)
       @patches = Async::Queue.new
+      @document = VDocument.new(nil, parent: self)
     end
 
     def render(descriptor)

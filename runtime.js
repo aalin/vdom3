@@ -10,6 +10,9 @@ export default class Runtime {
   constructor(tree) {
     const visit = (domNode, idNode) => {
       if (!domNode) return;
+      if (domNode.nodeName !== idNode.name) {
+        console.error(`Node ${idNode.id} should be ${nodeId.name}, but found ${domNode.nodeName}`)
+      }
       this.#nodeSet.setNode(idNode.id, domNode);
       if (!idNode.children) return;
       idNode.children.forEach((child, i) => {
