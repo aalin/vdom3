@@ -28,9 +28,7 @@ module VDOM
 
       def initialize(**) = nil
 
-      def state = @state ||= {}
       def props = @props ||= {}
-      def slots = @slots ||= {}
 
       def mount = nil
       def render = nil

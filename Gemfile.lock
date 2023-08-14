@@ -18,10 +18,12 @@ GEM
       tilt
     io-event (1.2.2)
     method_source (1.0.0)
+    minitest (5.19.0)
     prettier_print (1.2.1)
     pry (0.14.2)
       coderay (~> 1.1)
       method_source (~> 1.0)
+    rake (13.0.6)
     syntax_tree (6.1.1)
       prettier_print (>= 1.2.0)
     syntax_tree-haml (4.0.3)
@@ -39,7 +41,9 @@ PLATFORMS
 
 DEPENDENCIES
   async (~> 2.6)
+  minitest (~> 5.19)
   pry (~> 0.14.2)
+  rake (~> 13.0)
   syntax_tree (~> 6.1)
   syntax_tree-haml (~> 4.0)
   webrick

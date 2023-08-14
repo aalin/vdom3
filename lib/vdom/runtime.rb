@@ -7,13 +7,16 @@ require "async"
 require "async/barrier"
 require "async/queue"
 require "securerandom"
+require "cgi"
 require "pry"
 
+require_relative "component"
+require_relative "descriptors"
 require_relative "patches"
 require_relative "inline_style"
 
 module VDOM
-  INCLUDE_DEBUG_ID = true
+  INCLUDE_DEBUG_ID = false
 
   class Runtime
     IdNode = Data.define(:id, :children) do
@@ -23,9 +26,9 @@ module VDOM
 
       def serialize
         if c = children
-          {id:, children: c.flatten.map(&:serialize)}
+          { id:, children: c.flatten.map(&:serialize) }
         else
-          {id:}
+          { id: }
         end
       end
     end
@@ -44,33 +47,27 @@ module VDOM
         @id = VNode.generate_id
       end
 
-      def patch(&)
+      def patch(&) =
         @root.patch(&)
-      end
 
-      def traverse(&)
+      def traverse(&) =
         yield self
-      end
 
-      def inspect
+      def inspect =
         "#<#{self.class.name}##{@id} descriptor=#{@descriptor.inspect}>"
-      end
 
-      def dom_ids = [@id]
-
-      def dom_id_tree
+      def dom_ids =
+        [@id]
+      def dom_id_tree =
         IdNode[@id]
-      end
 
-      def mount
-      end
+      def mount =
+        nil
+      def unmount =
+        nil
 
-      def unmount
-      end
-
-      def task
+      def task =
         @parent.task
-      end
 
       def update_children_order =
         @parent.update_children_order
@@ -81,7 +78,7 @@ module VDOM
       def get_slotted(name) =
         @parent.get_slotted(name)
 
-      def init_vnode(descriptor)
+      def init_child_vnode(descriptor)
         case descriptor
         in Descriptors::Element[type: Class]
           VComponent.new(descriptor, parent: self)
@@ -103,14 +100,6 @@ module VDOM
           raise "Unhandled descriptor: #{descriptor.inspect}"
         end
       end
-
-      protected
-
-      def emit_patch(patch)
-        patch do |patches|
-          patches << patch
-        end
-      end
     end
 
     class VDocument < VNode
@@ -128,7 +117,7 @@ module VDOM
 
       def update(descriptor)
         patch do
-          @child = init_vnode(descriptor)
+          @child = init_child_vnode(descriptor)
         end
       end
 
@@ -274,7 +263,7 @@ module VDOM
               found.update(descriptor)
               found
             else
-              vnode = init_vnode(descriptor)
+              vnode = init_child_vnode(descriptor)
               vnode
             end
           end.compact
@@ -517,31 +506,28 @@ module VDOM
       @document.update(descriptor)
     end
 
+    def root =
+      self
+
     def to_html =
       @document.to_s
 
     def dom_id_tree =
       @document.dom_id_tree
 
-    def clear_queue!
+    def clear_queue! =
       until @patches.empty?
         puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
       end
-    end
 
-    def mount
+    def mount =
       @document.mount
-    end
 
-    def dequeue
+    def dequeue =
       @patches.dequeue
-    end
 
-    def traverse(&)
+    def traverse(&) =
       @document.traverse(&)
-    end
-
-    def root = self
 
     def patch(&)
       raise ArgumentError, "No block given" unless block_given?
