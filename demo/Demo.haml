@@ -1,6 +1,7 @@
 :ruby
   Heading = import("./Heading")
   Counter = import("./Counter")
+  Handlers = import("./Handlers")
 
   def mount
     puts "mounted"
@@ -11,6 +12,7 @@
 %div
   %Heading My webpage
   %h2(class="subtitle")= title
+  %Handlers
   %Counter
   %ul
     = items.to_enum.with_index.map do |item, i|

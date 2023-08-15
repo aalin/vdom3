@@ -334,6 +334,21 @@ module VDOM
           Const("VDOM")
         end
 
+        def create_callback(name)
+          CallNode(
+            ConstPathRef(
+              mayu_const_path,
+              Const("H")
+            ),
+            Period("."),
+            Ident("callback"),
+            ArgParen(Args([
+              VarRef(Kw("self")),
+              SymbolLiteral(name)
+            ]))
+          )
+        end
+
         def call_helpers(method, *args)
           CallNode(
             mayu_const_path,
@@ -791,11 +806,9 @@ module VDOM
             "Assoc[key: Label, value: VCall[value: Ident]]"
           ) do |assoc|
             if assoc.key.value.start_with?("on")
-              handler_name = @builder.SymbolLiteral(assoc.value.value)
-
               @builder.Assoc(
                 assoc.key,
-                @builder.call_helpers(:handler, [handler_name])
+                @builder.create_callback(assoc.value.value)
               )
             else
               assoc

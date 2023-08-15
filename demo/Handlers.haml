@@ -1,0 +1,15 @@
+:ruby
+  def initialize =
+    @count = 0
+
+  def handle_increment =
+    @count += 1
+
+  def handle_decrement =
+    (@count = @count - 1 if @count > 0)
+
+%fieldset
+  %legend Handlers test
+  %output= @count
+  %button(onclick=handle_increment) Increment
+  %button(onclick=handle_decrement) Decrement

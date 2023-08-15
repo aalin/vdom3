@@ -50,6 +50,12 @@ module VDOM
 
     StyleSheet = Data.define(:content)
 
+    Callback = Data.define(:component, :method) do
+      def to_s
+        "callback"
+      end
+    end
+
     def self.get_hash(descriptor)
       case descriptor
       when Element
@@ -84,9 +90,11 @@ module VDOM
       def comment(content) =
         Comment[content]
 
-      def merge_props(*props)
+      def merge_props(*props) =
         props.reduce({}) { |acc, props| acc.merge(props) }
-      end
+
+      def callback(component, method) =
+        Callback[component, method]
     end
   end
 end
