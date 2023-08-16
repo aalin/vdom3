@@ -453,7 +453,9 @@ module VDOM
           return
         end
 
-        return if old.to_s == new.to_s
+        if old.to_s == new.to_s
+          [prop, old]
+        end
 
         patches << Patches::SetAttribute[@id, prop, new.to_s]
         [prop, new]
@@ -475,12 +477,13 @@ module VDOM
       def update_callback(patches, prop, old, new)
         if old
           if old.callback.same?(new)
-            patches << Patches::RemoveAttribute[@id, prop]
-            return
+            return [prop, old]
           end
 
+          @root.remove_listener(old)
+
           unless new
-            @root.remove_listener(old)
+            patches << Patches::RemoveAttribute[@id, prop]
             return
           end
         end

@@ -22,6 +22,9 @@
     end
   end
 
+  def hello
+  end
+
 %div
   %output= @count
   %h1{style: { font_size: @count * 4, transition: "font-size 500ms", margin: 0 }}
@@ -31,5 +34,5 @@
   %p{style: {font_size: 2.em}}
     = if @count in 5..10
       = ["foo", (@count in 7..9) ? "bar" : nil, "baz"].compact
-    = if @count == 8
-      hopp
+    = if @count == 2
+      %button(onclick=hello) click me
