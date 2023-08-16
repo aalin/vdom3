@@ -25,6 +25,7 @@ Sync do |task|
   end
 
   html = runtime.to_html
+  puts html
   formatted_html = SyntaxTree::XML.format(html.sub(/\A<!doctype html>\n/, ''))
   puts formatted_html
   id_tree = runtime.dom_id_tree

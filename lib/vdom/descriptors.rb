@@ -17,7 +17,7 @@ module VDOM
         )
 
       def self.calculate_hash(type, key, slot, props) =
-        [self.class, type, key, slot, type == :input && props[:type]].hash
+        [self, type, key, slot, type == :input && props[:type]].hash
 
       def self.or_string(descriptor) =
         if self === descriptor
@@ -50,23 +50,26 @@ module VDOM
 
     StyleSheet = Data.define(:content)
 
-    Callback = Data.define(:component, :method) do
-      def to_s
-        "callback"
-      end
+    Callback = Data.define(:component, :method, :hash) do
+      def self.[](component, method) =
+        new(
+          component,
+          method,
+          [self, component, method].hash
+        )
     end
+
+    def self.same?(a, b) =
+      get_hash(a) == get_hash(b)
 
     def self.get_hash(descriptor)
       case descriptor
-      when Element
+      in Element | Callback
         descriptor.hash
       else
         descriptor.class
       end
     end
-
-    def self.same?(a, b) =
-      get_hash(a) == get_hash(b)
 
     def self.group_by_slot(descriptors)
       descriptors.group_by do |descriptor|

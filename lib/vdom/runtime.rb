@@ -37,8 +37,10 @@ module VDOM
       def self.generate_id =
         SecureRandom.alphanumeric(10)
 
+      attr_reader :id
       attr_reader :descriptor
       attr_reader :root
+      attr_reader :parent
 
       def initialize(descriptor, parent: nil)
         @descriptor = descriptor
@@ -296,16 +298,54 @@ module VDOM
       end
     end
 
+    class VCallback < VNode
+      attr_reader :callback_id
+
+      def initialize(...)
+        super
+        @callback_id = SecureRandom.alphanumeric(32)
+      end
+
+      def update(descriptor)
+        @descriptor = descriptor
+      end
+
+      def to_s
+        "Mayu.callback('#{@callback_id}',event)"
+      end
+    end
+
+    class VStyles < VNode
+      def initialize(...)
+        super
+      end
+
+      def unmount
+        patch do |patches|
+          patches << Patches::RemoveAttribute[]
+        end
+      end
+    end
+
     class VElement < VNode
       VOID_ELEMENTS = %i[
         area base br col embed hr img input link meta param source track wbr
       ]
 
+      Listener = Data.define(:id, :callback) do
+        def self.[](callback) =
+          new(SecureRandom.alphanumeric(32), callback)
+        def callback_js = "Mayu.callback('#{id}',event)"
+      end
+
       def initialize(...)
         super
 
+        @attributes = {}
+
         patch do |patches|
           patches << Patches::CreateElement[@id, @descriptor.type]
+          @attributes = update_attributes(@descriptor.props)
           @children = VChildren.new([], parent: self)
           @children.update(@descriptor.children)
         end
@@ -322,14 +362,19 @@ module VDOM
       def unmount
         patch do |patches|
           @children.unmount
+          @attributes
+              .values
+              .select { _1.is_a?(Listener) }
+              .each { @root.remove_listener(_1) }
+          @attributes = {}
           patches << Patches::RemoveNode[@id]
         end
       end
 
       def update(new_descriptor)
-        patch do
-          update_attributes(@descriptor.props, new_descriptor.props)
+        patch do |patches|
           @descriptor = new_descriptor
+          @attributes = update_attributes(new_descriptor.props)
           @children.update(@descriptor.children)
         end
       end
@@ -340,7 +385,13 @@ module VDOM
       end
 
       def to_s
-        attributes = @descriptor.props.map do |prop, value|
+        if INCLUDE_DEBUG_ID
+          identifier = ' data-mayu-id="%s"' % @id
+        end
+
+        name = @descriptor.type.to_s.downcase.tr("_", "-")
+
+        attributes = @attributes.map do |prop, value|
           if prop == :style && value.is_a?(Hash)
             value = InlineStyle.stringify(value)
           end
@@ -348,15 +399,13 @@ module VDOM
           format(
             ' %s="%s"',
             CGI.escape_html(prop.to_s.tr("_", "-")),
-            CGI.escape_html(value)
+            if value.is_a?(Listener)
+              value.callback_js
+            else
+              CGI.escape_html(value.to_s)
+            end
           )
         end.join
-
-        if INCLUDE_DEBUG_ID
-          identifier = ' data-mayu-id="%s"' % @id
-        end
-
-        name = @descriptor.type.to_s.downcase.tr("_", "-")
 
         if VOID_ELEMENTS.include?(@descriptor.type)
           "<#{name}#{identifier}#{attributes}>"
@@ -381,41 +430,65 @@ module VDOM
 
       private
 
-      def update_attributes(old_props, new_props)
+      def update_attributes(props)
         patch do |patches|
-          removed = new_props.keys.difference(old_props.keys)
+          return @attributes.keys.union(props.keys).map do |prop|
+            old = @attributes[prop]
+            new = props[prop] || nil
 
-          new_props.each do |attr, value|
-            next if old_props[attr] == value
-
-            if !value || value == ""
-              removed.push(attr)
-              next
-            end
-
-            if attr == :style
-              unless value.is_a?(Hash)
-                raise "style-prop has to be a hash"
-              end
-
-              InlineStyle.diff(@id, old_props[attr], value) do |patch|
-                patches << patch
-              end
-
-              next
-            end
-
-            if value == true
-              patches << Patches::SetAttribute[@id, attr.to_s, ""]
+            if prop == :style
+              update_style(patches, prop, old, new)
+            elsif prop.start_with?("on")
+              update_callback(patches, prop, old, new)
             else
-              patches << Patches::SetAttribute[@id, attr.to_s, value.to_s]
+              update_attribute(patches, prop, old, new)
             end
+          end.compact.to_h
+        end
+      end
+
+      def update_attribute(patches, prop, old, new)
+        unless new
+          patches << Patches::RemoveAttribute[@id, value]
+          return
+        end
+
+        return if old.to_s == new.to_s
+
+        patches << Patches::SetAttribute[@id, prop, new.to_s]
+        [prop, new]
+      end
+
+      def update_style(patches, prop, old, new)
+        unless new
+          patches << Patches::RemoveAttribute[@id, :style]
+          return
+        end
+
+        InlineStyle.diff(id, old || {}, new) do |patch|
+          patches << patch
+        end
+
+        [prop, new]
+      end
+
+      def update_callback(patches, prop, old, new)
+        if old
+          if old.callback.same?(new)
+            patches << Patches::RemoveAttribute[@id, prop]
+            return
           end
 
-          removed.each do |attr|
-            patches << Patches::RemoveAttribute[@id, attr.to_s]
+          unless new
+            @root.remove_listener(old)
+            return
           end
         end
+
+        listener = @root.add_listener(Listener[new])
+        patches << Patches::SetAttribute[@id, prop, listener.callback_js]
+
+        [prop, listener]
       end
     end
 
@@ -509,6 +582,7 @@ module VDOM
     def initialize(task: Async::Task.current)
       @task = task
       @patches = Async::Queue.new
+      @callbacks = {}
       @document = VDocument.new(nil, parent: self)
     end
 
@@ -557,12 +631,21 @@ module VDOM
       end
     end
 
+    def add_listener(listener)
+      puts "\e[31mRegistering listener #{listener.id}\e[0m"
+      @callbacks.store(listener.id, listener)
+    end
+    def remove_listener(listener)
+      puts "\e[33mRemoving listener #{listener.id}\e[0m"
+      @callbacks.delete(listener.id)
+    end
+
     def marshal_dump
-      [@document]
+      [@document, @callbacks]
     end
 
     def marshal_load(a)
-      @document = a.first
+      @document, @callbacks = a
       @task = Async::Task.current
       @patches = Async::Queue.new
     end
