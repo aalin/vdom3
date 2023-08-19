@@ -124,6 +124,10 @@ module VDOM
           ArrayLiteral(LBracket("["), Args(elems))
         end
 
+        def flattened_array(elems)
+          CallNode(array(elems), Period("."), Ident("flatten"), nil)
+        end
+
         def create_render(statements)
           Command(
             Ident("public"),
@@ -419,7 +423,9 @@ module VDOM
               @builder.create_program(
                 group_control_statements(setup),
                 styles,
-                group_control_statements(render)
+                render
+                  .then { group_control_statements(_1) }
+                  .then { wrap_multiple_expressions_in_array(_1) }
               ),
             styles:
           )
@@ -600,6 +606,14 @@ module VDOM
             .compact
         end
 
+        def wrap_multiple_expressions_in_array(nodes)
+          if nodes.length > 1
+            [@builder.flattened_array(nodes)]
+          else
+            nodes
+          end
+        end
+
         def group_condition(type, chunk)
           parse_ruby(join_ruby_script_nodes(chunk), fix: true) => [statement]
 
@@ -611,7 +625,12 @@ module VDOM
             top = chunk.shift
 
             if node.child_nodes in [SyntaxTree::VoidStmt]
-              @builder.Statements(visit_tag_children(top.children))
+              @builder.Statements(
+                top
+                  .children
+                  .then { visit_tag_children(_1) }
+                  .then { wrap_multiple_expressions_in_array(_1) }
+              )
             else
               unless top.children.empty?
                 raise "Line #{top.line} should not have children."
