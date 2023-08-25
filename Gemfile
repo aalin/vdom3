@@ -15,3 +15,8 @@ gem "webrick"
 gem "minitest", "~> 5.19"
 
 gem "rake", "~> 13.0"
+
+gem "async-http", "~> 0.60.2"
+
+gem "localhost", "~> 1.1"
+gem "async-io", "~> 1.35"
