@@ -11,8 +11,8 @@ Sync do |task|
   runtime = VDOM::Runtime.new
 
   VDOM::Modules::System.run("demo/") do
-    layout = VDOM::Modules::System.import("layout.haml")
-    component = VDOM::Modules::System.import("Demo.haml")
+    layout = VDOM::Modules::System.import("pages/layout.haml")
+    page = VDOM::Modules::System.import("pages/page.haml")
 
     H = VDOM::Descriptors::H
     System = VDOM::Descriptors::H
@@ -20,7 +20,7 @@ Sync do |task|
     puts "before render"
 
     task.async do
-      runtime.render(H[layout, H[component]])
+      runtime.render(H[layout, H[page]])
     end
 
     sleep 0.5
