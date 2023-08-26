@@ -635,7 +635,7 @@ module VDOM
     end
 
     def add_listener(listener)
-      puts "\e[31mRegistering listener #{listener.id}\e[0m"
+      puts "\e[32mRegistering listener #{listener.id}\e[0m"
       @callbacks.store(listener.id, listener)
     end
     def remove_listener(listener)

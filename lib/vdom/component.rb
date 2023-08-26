@@ -18,10 +18,7 @@ module VDOM
         self::COMPONENT_META.name
 
       def self.import(filename)
-        Component::Loader.load_file(
-          "#{filename}.haml",
-          File.dirname(caller.first.split(":", 2).first)
-        )
+        Modules::System.current.import(filename, caller.first)
       end
 
       def self.title = name[/[^:]+\z/]
@@ -89,15 +86,14 @@ module VDOM
         # puts "\e[3m SOURCE \e[0m"
         # puts "\e[33m#{source}\e[0m"
 
-        relative_path = path.relative_path_from(Dir.pwd)
-        source = Transformers::Haml.transform(source, relative_path).output
-        puts source
+        source = Transformers::Haml.transform(source, path).output
         source = Transformers::Ruby.transform(source)
 
         puts "\e[3m TRANSFORMED \e[0m"
         puts "\e[32m#{source}\e[0m"
 
-        component = ComponentModule.new(source, path)::Export
+        component_module = ComponentModule.new(source, path)
+        component = component_module::Export
 
         name = File.basename(path, ".*").freeze
         component.define_singleton_method(:title) { name }
@@ -112,7 +108,7 @@ module VDOM
         #   partials.each { Assets.instance.store(_1.asset) }
         # end
 
-        component
+        component_module
       end
     end
   end

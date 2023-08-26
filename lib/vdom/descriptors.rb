@@ -57,6 +57,9 @@ module VDOM
           method,
           [self, component, method].hash
         )
+
+      def same?(other) =
+        self.class === other && component == other.component && method == other.method
     end
 
     def self.same?(a, b) =

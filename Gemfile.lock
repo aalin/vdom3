@@ -24,6 +24,8 @@ GEM
       fiber-local
     fiber-annotation (0.2.0)
     fiber-local (1.0.0)
+    filewatcher (2.1.0)
+      module_methods (~> 0.1.0)
     haml (6.1.1)
       temple (>= 0.8.2)
       thor
@@ -32,6 +34,7 @@ GEM
     localhost (1.1.10)
     method_source (1.0.0)
     minitest (5.19.0)
+    module_methods (0.1.0)
     prettier_print (1.2.1)
     protocol-hpack (1.4.2)
     protocol-http (0.24.7)
@@ -50,6 +53,9 @@ GEM
       haml (>= 5.2)
       prettier_print (>= 1.2.1)
       syntax_tree (>= 6.0.0)
+    syntax_tree-xml (0.1.0)
+      prettier_print
+      syntax_tree (>= 2.0.1)
     temple (0.10.2)
     thor (1.2.2)
     tilt (2.2.0)
@@ -64,12 +70,14 @@ DEPENDENCIES
   async (~> 2.6)
   async-http (~> 0.60.2)
   async-io (~> 1.35)
+  filewatcher (~> 2.1)
   localhost (~> 1.1)
   minitest (~> 5.19)
   pry (~> 0.14.2)
   rake (~> 13.0)
   syntax_tree (~> 6.1)
   syntax_tree-haml (~> 4.0)
+  syntax_tree-xml (~> 0.1.0)
   webrick
 
 BUNDLED WITH
