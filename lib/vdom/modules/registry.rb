@@ -1,37 +1,39 @@
 module VDOM
   module Modules
     module Registry
-      HASH_LENGTH = 5
+      PREFIX = "Mod_"
+      # DIVISION_SLASH = "\u2215"
+      # ONE_DOT_LEADER = "\u2024"
+      REPLACEMENTS = {
+        # "/" => DIVISION_SLASH,
+        # "." => ONE_DOT_LEADER,
+      }
 
       def self.[](path)
         const_name = path_to_const_name(path)
-        const_defined?(const_name) &&
-          const_get(const_name)
+        const_defined?(const_name) && const_get(const_name)
       end
 
       def self.[]=(path, obj)
         const_name = path_to_const_name(path)
         const_set(const_name, obj)
-        puts "\e[33mSetting #{self.name}::#{const_name} = #{obj.inspect}\e[0m"
+        puts "\e[33mSetting #{name}::#{const_name} = #{obj.inspect}\e[0m"
         obj
       end
 
       def self.delete(path)
         const_name = path_to_const_name(path)
-        const_defined?(const_name) &&
-          remove_const(path_to_const_name(path))
+        const_defined?(const_name) && remove_const(path_to_const_name(path))
       end
 
       def self.path_to_const_name(path)
-        hash = Digest::SHA256.hexdigest(path.to_s)[0..HASH_LENGTH]
-        name = path.to_s.gsub(/[^[a-zA-Z0-9]]/) { format("_%d_", _1.ord) }
-        "Module_#{name}__#{hash}"
+        PREFIX + path.to_s.gsub(/[^[a-zA-Z0-9]]/) do |char|
+          REPLACEMENTS.fetch(char) { "_#{_1.ord}_" }
+        end
       end
 
-      def self.const_name_to_path(const_name)
-        const_name.gsub(/_(\d+)_/) do
-          $~[1].to_i.chr("utf-8")
-        end
+      def self.modules
+        constants.filter { _1.start_with?(PREFIX) }.map { const_get(_1) }
       end
     end
   end

@@ -15,7 +15,7 @@ Sync do |task|
     page = VDOM::Modules::System.import("pages/page.haml")
 
     H = VDOM::Descriptors::H
-    System = VDOM::Descriptors::H
+    System = VDOM::Modules::System
 
     puts "before render"
 
@@ -28,6 +28,11 @@ Sync do |task|
     runtime.traverse do |node|
       p node.class.name
     end
+
+    dotfile = "module-graph.dot"
+    File.write(dotfile, System.current.export_dot)
+    system("dot", "-Kdot", "-Tsvg", "-omodule-graph.svg", dotfile)
+    File.unlink(dotfile)
 
     html = runtime.to_html
     puts html

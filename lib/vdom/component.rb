@@ -8,18 +8,18 @@ require_relative "transformers/haml"
 require_relative "transformers/ruby"
 require_relative "descriptors"
 require_relative "css_units"
+require_relative "modules"
 
 module VDOM
   module Component
     class Base
       H = VDOM::Descriptors::H
 
-      def self.inspect =
-        self::COMPONENT_META.name
-
-      def self.import(filename)
-        Modules::System.current.import(filename, caller.first)
-      end
+      def self.import(filename) =
+        Modules::System.import(
+          filename,
+          caller.first.split(":", 2).first
+        )
 
       def self.title = name[/[^:]+\z/]
 
@@ -45,13 +45,6 @@ module VDOM
       def rerender! = nil
       # this method will be defined on each component.
       def emit!(event, **payload) = nil
-    end
-
-    class ComponentModule < Module
-      using CSSUnits::Refinements
-
-      def initialize(code, path) =
-        instance_eval(code, path.to_s, 1)
     end
 
     Metadata = Data.define(:name, :path)
@@ -92,8 +85,8 @@ module VDOM
         puts "\e[3m TRANSFORMED \e[0m"
         puts "\e[32m#{source}\e[0m"
 
-        component_module = ComponentModule.new(source, path)
-        component = component_module::Export
+        mod = VDOM::Modules::Mod.new(source, path)
+        component = mod::Export
 
         name = File.basename(path, ".*").freeze
         component.define_singleton_method(:title) { name }
@@ -108,7 +101,7 @@ module VDOM
         #   partials.each { Assets.instance.store(_1.asset) }
         # end
 
-        component_module
+        mod
       end
     end
   end
