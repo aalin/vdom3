@@ -60,10 +60,27 @@ module VDOM
                   Const("Base")
                 )
               ),
-              BodyStmt(program.statements, nil, nil, nil, nil),
+              BodyStmt(
+                Statements([using_statements, program.statements.body].flatten),
+                nil, nil, nil, nil),
             )
           ])
         program.copy(statements:)
+      end
+
+      def using_statements
+        [
+          Command(
+            Ident("using"),
+            Args([
+              ConstPathRef(
+                VarRef(Const("CSSUnits")),
+                Const("Refinements")
+              )
+            ]),
+          nil
+          )
+        ]
       end
 
       def heredoc_html
