@@ -12,6 +12,6 @@ module VDOM
       # result[:class] = component.styles[*classes]
     end
 
-    result.transform_keys { _1.to_s.tr("-", "_").to_sym }
+    result
   end
 end

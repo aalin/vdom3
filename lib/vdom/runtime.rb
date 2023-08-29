@@ -167,6 +167,7 @@ module VDOM
 
       def update(new_descriptor)
         @descriptor = new_descriptor
+        @instance.instance_variable_set(:@props, @descriptor.props)
         @children.update(@instance.render)
       end
 
@@ -335,6 +336,7 @@ module VDOM
       Listener = Data.define(:id, :callback) do
         def self.[](callback) =
           new(SecureRandom.alphanumeric(32), callback)
+
         def callback_js = "Mayu.callback('#{id}',event)"
       end
 
@@ -487,6 +489,8 @@ module VDOM
             return
           end
         end
+
+        return unless new
 
         listener = @root.add_listener(Listener[new])
         patches << Patches::SetAttribute[@id, prop, listener.callback_js]

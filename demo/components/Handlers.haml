@@ -1,4 +1,6 @@
 :ruby
+  Button = import("./Button")
+
   def initialize =
     @count = 0
 
@@ -11,5 +13,5 @@
 %fieldset
   %legend Handlers test
   %output= @count
-  %button(onclick=handle_increment) Increment
-  %button(onclick=handle_decrement) Decrement
+  %Button(onclick=handle_increment) Increment
+  %Button(onclick=handle_decrement) Decrement

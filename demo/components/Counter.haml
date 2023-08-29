@@ -1,4 +1,6 @@
 :ruby
+  Button = import("./Button")
+
   def initialize
     @count = 0
     @count2 = 0
@@ -35,4 +37,4 @@
     = if @count in 5..10
       = ["foo", (@count in 7..9) ? "bar" : nil, "baz"].compact
     = if @count == 2
-      %button(onclick=hello) click me
+      %Button(onclick=hello) click me

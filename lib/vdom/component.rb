@@ -29,6 +29,7 @@ module VDOM
 
       def mount = nil
       def render = nil
+      def unmount = nil
 
       private
 

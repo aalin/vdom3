@@ -96,9 +96,6 @@ module VDOM
       def comment(content) =
         Comment[content]
 
-      def merge_props(*props) =
-        props.reduce({}) { |acc, props| acc.merge(props) }
-
       def callback(component, method) =
         Callback[component, method]
     end
