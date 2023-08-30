@@ -8,6 +8,7 @@ require_relative "modules/resolver"
 require_relative "modules/dependency_graph"
 require_relative "modules/dot_exporter"
 require_relative "modules/watcher"
+require_relative "modules/loaders"
 
 module VDOM
   module Modules
@@ -92,7 +93,7 @@ module VDOM
         source = File.read(File.join(@root, resolved))
 
         mod =
-          VDOM::Component::Loader.load_component(
+          Loaders.load(
             source,
             resolved
           )
