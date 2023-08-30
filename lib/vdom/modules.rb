@@ -7,6 +7,7 @@ require_relative "modules/registry"
 require_relative "modules/resolver"
 require_relative "modules/dependency_graph"
 require_relative "modules/dot_exporter"
+require_relative "modules/watcher"
 
 module VDOM
   module Modules
@@ -18,6 +19,11 @@ module VDOM
         @code = code
         @path = path
         System.register(path, self)
+        instance_eval(@code, @path, 1)
+      end
+
+      def reevaluate
+        remove_const(:Export) if const_defined?(:Export)
         instance_eval(@code, @path, 1)
       end
 
@@ -101,45 +107,39 @@ module VDOM
       end
 
       def created(path)
+        parts = path.delete_prefix("/").split("/")
+
+        if parts in ["pages", *path_parts, "page.haml" | "layout.haml"]
+          import(path)
+        end
       end
 
       def updated(path)
         return unless @graph.include?(path)
-      end
 
-      def deleted(path)
-        @graph.dfs2(path, :incoming) do |node|
-          puts node
+        dependants = @graph.dependants_of(path)
+
+        Registry.delete(path)
+        @graph.delete_node(path)
+
+        dependants.each do
+          @graph.get_obj(_1).reevaluate
         end
       end
+
+      def deleted(path) =
+        updated(path)
 
       def export_dot
         DotExporter.new(@graph).to_source
       end
 
       def relative_from_root(absolute_path)
-        Pathname.new(absolute_path).relative_path_from(@root)
+        File.join("/", Pathname.new(absolute_path).relative_path_from(@root))
       end
 
       def relative_to_absolute(relative_path)
-        Pathname.new(File.join(@root), relative_path)
-      end
-    end
-
-    class Watcher
-      def self.run(system)
-        Filewatcher.new([system.root]).watch do |changes|
-          changes.each do |path, event|
-            relative_from_root = system.relative_from_root(path)
-
-            if event in :created | :deleted | :updated
-              $stderr.puts "\e[33m#{event}: #{relative_from_root}\e[0m"
-              system.send(event, relative_from_root)
-            else
-              $stderr.puts "\e[31mUnhandled event: #{event}: #{relative_from_root}\e[0m"
-            end
-          end
-        end
+        File.join(@root, relative_path)
       end
     end
   end

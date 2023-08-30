@@ -54,6 +54,9 @@ module VDOM
       def delete_connections(id) =
         @nodes.each { |node| node.delete(id) }
 
+      def get_node(id) =
+        @nodes[id]
+
       def get_obj(id) =
         @nodes[id]&.obj
 
