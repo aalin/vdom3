@@ -49,8 +49,21 @@ module VDOM
         @id = VNode.generate_id
       end
 
-      def patch(&) =
-        @root.patch(&)
+      def patch(&)
+        if Fiber[:patch_set]
+          yield Fiber[:patch_set]
+          return
+        end
+
+        patch_set = PatchSet.new
+
+        begin
+          yield Fiber[:patch_set] = patch_set
+        ensure
+          @root.commit(patch_set)
+          Fiber[:patch_set] = nil
+        end
+      end
 
       def traverse(&) =
         yield self
@@ -166,9 +179,13 @@ module VDOM
       def to_s = @children.to_s
 
       def update(new_descriptor)
+        old_props = @descriptor.props
         @descriptor = new_descriptor
-        @instance.instance_variable_set(:@props, @descriptor.props)
-        @children.update(@instance.render)
+
+        unless old_props == @descriptor.props
+          @instance.instance_variable_set(:@props, @descriptor.props)
+          @children.update(@instance.render)
+        end
       end
 
       def get_slotted(name)
@@ -611,6 +628,9 @@ module VDOM
         puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
       end
 
+    def commit(patch_set) =
+      @patches.enqueue(patch_set.to_a)
+
     def mount =
       @document.mount
 
@@ -619,24 +639,6 @@ module VDOM
 
     def traverse(&) =
       @document.traverse(&)
-
-    def patch(&)
-      raise ArgumentError, "No block given" unless block_given?
-
-      if @patch_set
-        yield @patch_set
-        return
-      end
-
-      begin
-        @patch_set = PatchSet.new
-        yield @patch_set
-      ensure
-        patch_set = @patch_set
-        @patch_set = nil
-        @patches.enqueue(patch_set.to_a)
-      end
-    end
 
     def add_listener(listener)
       puts "\e[32mRegistering listener #{listener.id}\e[0m"

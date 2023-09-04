@@ -15,11 +15,18 @@ module VDOM
     class Session
       attr_reader :id
 
-      def initialize
+      def initialize(descriptor:)
         @id = SecureRandom.alphanumeric(32)
         @input = Async::Queue.new
         @output = Async::Queue.new
         @stop = Async::Condition.new
+
+        @runtime = VDOM::Runtime.new
+        @runtime.render(descriptor)
+      end
+
+      def render
+        @runtime.to_html
       end
 
       def take =
@@ -30,13 +37,13 @@ module VDOM
       def pong(time) =
         @input.enqueue([:pong, time])
 
-      def run(component, task: Async::Task.current)
+      def run(descriptor, task: Async::Task.current)
         VDOM::Runtime.run do |runtime|
           task.async { input_loop(runtime) }
           task.async { ping_loop }
           task.async { patch_loop(runtime) }
 
-          runtime.resume(VDOM::Descriptor[component])
+          runtime.resume(VDOM::Descriptor[descriptor])
 
           @stop.wait
         ensure
@@ -132,8 +139,8 @@ module VDOM
         "immutable",
       ].join(", ").freeze
 
-      def initialize(component:, public_path:)
-        @component = component
+      def initialize(descriptor:, public_path:)
+        @descriptor = descriptor
         @public_path = public_path
         @sessions = {}
         @file_cache = {}
@@ -165,10 +172,14 @@ module VDOM
       end
 
       def handle_start_session(request)
+        session = Session.new(descriptor: @descriptor)
+
+        body = session.render
+
         Protocol::HTTP::Response[
           404,
           { "content-type" => "text/plain; charset-utf-8" },
-          ["this is where we would start the session\n"]
+          [body]
         ]
       end
 
@@ -268,7 +279,7 @@ module VDOM
             end
           end
 
-          session.run(@component)
+          session.run(@descriptor)
         ensure
           @sessions.delete(session.id)
           body&.close
@@ -343,9 +354,9 @@ module VDOM
       end
     end
 
-    def initialize(bind:, localhost:, component:, public_path:)
+    def initialize(bind:, localhost:, descriptor:, public_path:)
       @uri = URI.parse(bind)
-      @app = App.new(component:, public_path:)
+      @app = App.new(descriptor:, public_path:)
 
       endpoint = Async::HTTP::Endpoint.new(@uri)
 
