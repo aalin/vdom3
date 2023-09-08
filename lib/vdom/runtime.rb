@@ -19,6 +19,27 @@ module VDOM
   INCLUDE_DEBUG_ID = true
 
   class Runtime
+    module Components
+      class Head < Component::Base
+        def render
+          @props => {
+            session_id:,
+            descriptor:
+          }
+
+          H[:__head,
+            *descriptor.children,
+            H[:script,
+              type: "module",
+              src: "/session.js##{session_id}",
+              async: true,
+            ],
+            **descriptor.props
+          ]
+        end
+      end
+    end
+
     IdNode = Data.define(:id, :name, :children) do
       def self.[](id, name, children = nil)
         new(id, name, children)
@@ -99,6 +120,15 @@ module VDOM
           VComponent.new(descriptor, parent: self)
         in Descriptors::Element[type: :slot]
           VSlot.new(descriptor, parent: self)
+        in Descriptors::Element[type: :head]
+          VComponent.new(
+            Descriptors::H[
+              Components::Head,
+              descriptor:,
+              session_id: @root.session_id
+            ], parent: self)
+        in Descriptors::Element[type: :__head]
+          VElement.new(descriptor.with(type: :head), parent: self)
         in Descriptors::Element
           VElement.new(descriptor, parent: self)
         in Descriptors::Text
@@ -153,7 +183,9 @@ module VDOM
       def initialize(...)
         super(...)
 
-        @instance = @descriptor.type.new(**@descriptor.props)
+        @instance = @descriptor.type.allocate
+        @instance.instance_variable_set(:@props, @descriptor.props)
+        @instance.send(:initialize, **@descriptor.props)
         @children = VChildren.new(@instance.render, parent: self)
       end
 
@@ -411,6 +443,12 @@ module VDOM
         name = @descriptor.type.to_s.downcase.tr("_", "-")
 
         attributes = @attributes.map do |prop, value|
+          next unless value
+
+          if value == true
+            next " #{prop}"
+          end
+
           if prop == :style && value.is_a?(Hash)
             value = InlineStyle.stringify(value)
           end
@@ -603,7 +641,10 @@ module VDOM
       alias << push
     end
 
-    def initialize(task: Async::Task.current)
+    attr_reader :session_id
+
+    def initialize(session_id:, task: Async::Task.current)
+      @session_id = session_id
       @task = task
       @patches = Async::Queue.new
       @callbacks = {}
@@ -644,17 +685,22 @@ module VDOM
       puts "\e[32mRegistering listener #{listener.id}\e[0m"
       @callbacks.store(listener.id, listener)
     end
+
     def remove_listener(listener)
       puts "\e[33mRemoving listener #{listener.id}\e[0m"
       @callbacks.delete(listener.id)
     end
 
+    def callback(id, payload)
+      @callbacks.fetch(id).call(payload)
+    end
+
     def marshal_dump
-      [@document, @callbacks]
+      [@session_id, @document, @callbacks]
     end
 
     def marshal_load(a)
-      @document, @callbacks = a
+      @session_id, @document, @callbacks = a
       @task = Async::Task.current
       @patches = Async::Queue.new
     end

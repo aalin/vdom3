@@ -21,7 +21,7 @@ module VDOM
         @output = Async::Queue.new
         @stop = Async::Condition.new
 
-        @runtime = VDOM::Runtime.new
+        @runtime = VDOM::Runtime.new(session_id: @id)
         @runtime.render(descriptor)
       end
 
@@ -29,27 +29,58 @@ module VDOM
         @runtime.to_html
       end
 
+      def run
+        @runtime.mount
+
+        barrier = Async::Barrier.new
+
+        barrier.async do
+          loop do
+            patches = @runtime.dequeue
+
+            serialized_patches = patches.map do
+              VDOM::Patches.serialize(_1)
+            end
+
+            @output.enqueue(serialized_patches)
+          end
+        end
+
+        barrier.async do
+        end
+
+        barrier.async do
+          @stop.wait
+          barrier.stop
+        end
+
+        barrier.wait
+      ensure
+        @runtime.unmount
+      end
+
       def take =
         @output.dequeue
 
       def callback(id, payload) =
-        @input.enqueue([:callback, id, payload])
+        @runtime.callback(id, payload)
+
       def pong(time) =
         @input.enqueue([:pong, time])
 
-      def run(descriptor, task: Async::Task.current)
-        VDOM::Runtime.run do |runtime|
-          task.async { input_loop(runtime) }
-          task.async { ping_loop }
-          task.async { patch_loop(runtime) }
-
-          runtime.resume(VDOM::Descriptor[descriptor])
-
-          @stop.wait
-        ensure
-          runtime&.stop
-        end
-      end
+      # def run(descriptor, task: Async::Task.current)
+      #   VDOM::Runtime.run do |runtime|
+      #     task.async { input_loop(runtime) }
+      #     task.async { ping_loop }
+      #     task.async { patch_loop(runtime) }
+      #
+      #     runtime.resume(VDOM::Descriptor[descriptor])
+      #
+      #     @stop.wait
+      #   ensure
+      #     runtime&.stop
+      #   end
+      # end
 
       private
 
@@ -92,8 +123,9 @@ module VDOM
       end
 
       def patch_loop(runtime)
-        while patch = runtime.take
-          @output.enqueue(VDOM::Patches.serialize(patch))
+        while patches = runtime.take
+          p patches
+          @output.enqueue(patches.map { VDOM::Patches.serialize(_1) })
           # Uncomment the following line to add some latency
           # sleep 0.0005
         end
@@ -154,41 +186,32 @@ module VDOM
         case request
         in path: "/favicon.ico"
           handle_favicon(request)
-        in path: "/runtime.js"
+      in path: "/runtime.js" | "/session.js" | "/stream.js"
           handle_script(request)
         in path: "/.vdom", method: "OPTIONS"
           handle_options(request)
-        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)\/resume}, method: "POST"
-          handle_vdom_resume(request, session_id)
-        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)\/callback/(?<callback_id>[[:alnum:]]+)}, method: "POST"
-          handle_vdom_callback(request, $~[:session_id], $~[:callback_id])
+        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "GET"
+          handle_session_resume(request, $~[:session_id])
+        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "PATCH"
+          handle_session_callback(request, $~[:session_id])
         in path: %r{\A/\.vdom/(.+)\z}, method: "GET"
           handle_vdom_asset(request)
         in method: "GET"
-          handle_start_session(request)
+          handle_session_start(request)
         else
           handle_404(request)
         end
       end
 
-      def handle_start_session(request)
-        session = Session.new(descriptor: @descriptor)
-
-        body = session.render
-
-        Protocol::HTTP::Response[
-          404,
-          { "content-type" => "text/plain; charset-utf-8" },
-          [body]
-        ]
-      end
-
-      def handle_index(_) =
-        send_file("index.html", "text/html; charset=utf-8")
       def handle_favicon(_) =
         send_file("favicon.png", "image/png")
+
       def handle_script(request) =
-        send_file("runtime.js", "application/javascript; charset=utf-8", origin_header(request))
+        send_file(
+          File.basename(request.path),
+          "application/javascript; charset=utf-8",
+          origin_header(request)
+        )
 
       def handle_404(request)
         Console.logger.error(self, "File not found at #{request.path.inspect}")
@@ -252,9 +275,29 @@ module VDOM
         end
       end
 
-      def handle_vdom_resume(request, task: Async::Task.current)
+      def handle_session_start(request)
+        session = Session.new(descriptor: @descriptor)
+
+        @sessions.store(session.id, session)
+
+        body = session.render
+
+        Protocol::HTTP::Response[
+          200,
+          { "content-type" => "text/html; charset-utf-8" },
+          [body]
+        ]
+      end
+
+      def handle_session_resume(request, session_id, task: Async::Task.current)
+        session = @sessions.fetch(session_id) do
+          return Protocol::HTTP::Response[404, {
+            content_type: "text/plain"
+          }, ["Session not found"]]
+        end
+
         headers = {
-          "content-type" => "x-vdom/json-stream",
+          "content-type" => "x-mayu/json-stream",
           "access-control-expose-headers" => SESSION_ID_HEADER_NAME,
           **origin_header(request),
         }
@@ -266,8 +309,6 @@ module VDOM
           body = DeflateWrapper.new(body)
         end
 
-        session = Session.new
-
         headers[SESSION_ID_HEADER_NAME] = session.id
 
         task.async do |subtask|
@@ -275,22 +316,20 @@ module VDOM
 
           subtask.async do
             while msg = session.take
+              p msg
               body.write(JSON.generate(msg) + "\n")
             end
           end
 
-          session.run(@descriptor)
+          session.run
         ensure
-          @sessions.delete(session.id)
           body&.close
         end
 
         Protocol::HTTP::Response[200, headers, body]
       end
 
-      def handle_vdom_post(request)
-        session_id = request.headers[SESSION_ID_HEADER_NAME].to_s
-
+      def handle_session_callback(request, session_id)
         session = @sessions.fetch(session_id) do
           Console.logger.error(self, "Could not find session #{session_id.inspect}")
 
@@ -350,7 +389,8 @@ module VDOM
           filename
             .then { File.expand_path(_1, "/") }
             .then { File.join(@public_path, _1) }
-        @file_cache[path] ||= File.read(path)
+        # @file_cache[path] ||= File.read(path)
+        File.read(path)
       end
     end
 

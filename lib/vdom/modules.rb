@@ -92,7 +92,7 @@ module VDOM
             @graph.add_dependency(source_file.to_s, resolved)
           end
 
-          return found
+          return found::Export
         end
 
         source = File.read(File.join(@root, resolved))
