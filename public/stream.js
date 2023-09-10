@@ -6,10 +6,8 @@ export async function initInputStream(endpoint) {
 
   const contentEncoding = res.headers.get("content-encoding");
 
-  if (content
-
   return  res.body
-    .pipeThrough(new DecompressionStream('deflate-raw'))
+    .pipeThrough(new DecompressionStream(contentEncoding))
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new JSONDecoderStream())
 }
