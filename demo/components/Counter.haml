@@ -9,17 +9,16 @@
   def mount
     async do
       loop do
-        puts "Increasing count"
         @count += 1
+        @count %= 16
         sleep 1
       end
     end
 
     async do
       loop do
-        puts "Increasing count"
         @count2 += 1
-        sleep 0.1
+        sleep 0.5
       end
     end
   end
