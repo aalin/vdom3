@@ -388,11 +388,11 @@ module VDOM
           method = callback.component.method(callback.method_name)
 
           case method.parameters
-          when []
+          in []
             method.call
-          when [[:req, Symbol]]
+          in [[:req, Symbol]]
             method.call(payload)
-          when [[:keyrest, Symbol]]
+          in [[:keyrest, Symbol]]
             method.call(**payload)
           end
         end
