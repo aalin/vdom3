@@ -190,7 +190,7 @@ module VDOM
         case request
         in path: "/favicon.ico"
           handle_favicon(request)
-        in path: "/runtime.js" | "/session.js" | "/stream.js"
+        in path: %r{\A\/.mayu\/runtime\/\w+\.js}
           handle_script(request)
         in path: "/.vdom", method: "OPTIONS"
           handle_options(request)

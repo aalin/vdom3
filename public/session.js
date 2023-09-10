@@ -1,5 +1,6 @@
-import Runtime from '/runtime.js'
-import {initInputStream, initCallbackStream, JSONEncoderStream, RAFQueue} from './stream.js'
+import Runtime from './runtime.js'
+import { initInputStream, initCallbackStream, JSONEncoderStream, RAFQueue } from './stream.js'
+import serializeEvent from "./serializeEvent.js"
 
 class PatchStream extends WritableStream {
   constructor(runtime) {
@@ -31,13 +32,6 @@ const output = initCallbackStream(endpoint)
 const runtime = new Runtime()
 
 const callbackStream = new TransformStream()
-
-function serializeEvent(event) {
-  return {
-    type: event.type,
-    value: event.target.value,
-  }
-}
 
 class Mayu {
   #writer = null

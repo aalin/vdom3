@@ -31,7 +31,7 @@ module VDOM
             *descriptor.children,
             H[:script,
               type: "module",
-              src: "/session.js##{session_id}",
+              src: "/.mayu/runtime/session.js##{session_id}",
               async: true,
             ],
             **descriptor.props
