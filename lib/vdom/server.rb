@@ -195,7 +195,7 @@ module VDOM
           handle_options(request)
         in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "GET"
           handle_session_resume(request, $~[:session_id])
-        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "PATCH"
+        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "POST"
           handle_session_callback(request, $~[:session_id])
         in path: %r{\A/\.vdom/(.+)\z}, method: "GET"
           handle_vdom_asset(request)

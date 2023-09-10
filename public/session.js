@@ -1,5 +1,5 @@
 import Runtime from '/runtime.js'
-import {connect, readInput, initCallbackStream, JSONDecoderStream, JSONEncoderStream, RAFQueue} from './stream.js'
+import {initInputStream, initCallbackStream, JSONEncoderStream, RAFQueue} from './stream.js'
 
 class PatchStream extends WritableStream {
   constructor(runtime) {
@@ -25,35 +25,39 @@ class PatchStream extends WritableStream {
 const sessionId = import.meta.url.split("#").at(-1)
 
 const endpoint = `/.vdom/session/${sessionId}`
-const input = await connect(endpoint)
+const input = await initInputStream(endpoint)
 const output = initCallbackStream(endpoint)
 
 const runtime = new Runtime()
 
-const callbackStream = new JSONEncoderStream()
-const callbackWriter = callbackStream.writable.getWriter()
+const callbackStream = new TransformStream()
 
-window.Mayu = {
-  callback(event, id) {
-    callbackWriter.write([
-      "callback",
-      id,
-      {
-        id,
-        type: event.type,
-        target: {
-          textContent: event.target.textContent
-        }
-      }
-    ])
+function serializeEvent(event) {
+  return {
+    type: event.type,
+    target: {
+      textContent: event.target.textContent
+    }
   }
 }
 
-readInput(input)
-  .pipeThrough(new TextDecoderStream())
-  .pipeThrough(new JSONDecoderStream())
-  .pipeTo(new PatchStream(runtime));
+class Mayu {
+  #writer = null
+
+  constructor(writer) {
+    this.#writer = writer
+  }
+
+  callback(event, id) {
+    this.#writer.write(["callback", id, serializeEvent(event)])
+  }
+}
+
+window.Mayu = new Mayu(callbackStream.writable.getWriter())
+
+input.pipeTo(new PatchStream(runtime));
 
 callbackStream.readable
+  .pipeThrough(new JSONEncoderStream())
   .pipeThrough(new TextEncoderStream())
   .pipeTo(output);

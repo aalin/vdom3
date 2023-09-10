@@ -1,14 +1,22 @@
 const STREAM_MIME_TYPE = "x-mayu/json-stream";
 const STREAM_CONTENT_ENCODING = "deflate-raw";
 
-export function readInput(res) {
+export async function initInputStream(endpoint) {
+  const res = await connect(endpoint)
+
   const contentEncoding = res.headers.get("content-encoding");
+  console.log(res.headers)
 
-  if (contentEncoding && contentEncoding !== "identity") {
-    return res.body.pipeThrough(new DecompressionStream(contentEncoding));
-  }
+  console.log({contentEncoding})
 
-  return res.body;
+  const stream =
+    contentEncoding && contentEncoding !== 'identity'
+    ? res.body.pipeThrough(new DecompressionStream(contentEncoding))
+    : res.body
+
+  return stream
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new JSONDecoderStream())
 }
 
 export async function connect(endpoint) {
@@ -106,12 +114,33 @@ export class JSONEncoderStream extends TransformStream {
   }
 }
 
+const supportsRequestStreams = (() => {
+  // https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
+  let duplexAccessed = false;
+
+  const hasContentType = new Request("", {
+    body: new ReadableStream(),
+    method: "POST",
+    get duplex() {
+      duplexAccessed = true;
+      return "half";
+    },
+  }).headers.has("Content-Type");
+
+  return duplexAccessed && !hasContentType;
+})();
+
 export function initCallbackStream(endpoint) {
+  if (!supportsRequestStreams) {
+    console.warn("Request streams not supported, using fallback.")
+    return initCallbackStreamFetchFallback(endpoint);
+  }
+
   const contentEncoding = "identity"; // STREAM_CONTENT_ENCODING;
   const { readable, writable } = new TransformStream(); // new CompressionStream(contentEncoding);
 
   fetch(endpoint, {
-    method: "PATCH",
+    method: "POST",
     headers: new Headers({
       "content-type": STREAM_MIME_TYPE,
       "content-encoding": contentEncoding,
@@ -122,4 +151,19 @@ export function initCallbackStream(endpoint) {
   });
 
   return writable;
+}
+
+function initCallbackStreamFetchFallback(endpoint) {
+  return new WritableStream({
+    write(body, controller) {
+      fetch(endpoint, {
+        method: "POST",
+        headers: new Headers({
+          "content-type": "application/json",
+        }),
+        mode: "cors",
+        body: body,
+      });
+    },
+  });
 }
