@@ -1,8 +1,10 @@
 :ruby
   Button = import("./Button")
 
-  def initialize =
+  def initialize
     @count = 0
+    @slug = ""
+  end
 
   def handle_increment =
     @count += 1
@@ -10,8 +12,27 @@
   def handle_decrement =
     (@count = @count - 1 if @count > 0)
 
+  def handle_input(event) =
+    @slug = slugify(event[:value].to_s)
+
+  private
+
+  def slugify(str) =
+    str
+      .unicode_normalize(:nfd)
+      .gsub(/[\s_-]+/, "-")
+      .gsub(/[^a-z0-9-]/, "")
+
 %fieldset
   %legend Handlers test
   %output= @count
   %Button(onclick=handle_increment) Increment
   %Button(onclick=handle_decrement) Decrement
+%fieldset
+  %legend Callbacks
+  %div
+    Title:
+    %input(oninput=handle_input)<
+  %p
+    Slug:
+    %output<= @slug
