@@ -298,7 +298,8 @@ module VDOM
           in [statement]
             statement
           else
-            Begin(BodyStmt(Statements(statements), nil, nil, nil, nil))
+            Statements(statements)
+              .then { Begin(BodyStmt(_1, nil, nil, nil, nil)) }
           end
         end
 
@@ -419,7 +420,7 @@ module VDOM
           Result.new(
             program:
               @builder.create_program(
-                group_control_statements(setup),
+                setup.map { _1.accept(self) },
                 styles,
                 render
                   .then { group_control_statements(_1) }
@@ -613,7 +614,9 @@ module VDOM
         end
 
         def group_condition(type, chunk)
-          parse_ruby(join_ruby_script_nodes(chunk), fix: true) => [statement]
+          chunk
+            .then { join_ruby_script_nodes(_1) }
+            .then { parse_ruby(_1, fix: true) } => [statement]
 
           visitor = MutationVisitor.new
 
