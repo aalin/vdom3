@@ -35,9 +35,7 @@ const callbackStream = new TransformStream()
 function serializeEvent(event) {
   return {
     type: event.type,
-    target: {
-      textContent: event.target.textContent
-    }
+    value: event.target.value,
   }
 }
 
