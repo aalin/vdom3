@@ -9,6 +9,7 @@ require "async/http/endpoint"
 require "async/http/protocol/response"
 require "async/http/server"
 require_relative "runtime"
+require_relative "compression"
 
 module VDOM
   class Server
@@ -253,31 +254,6 @@ module VDOM
         Protocol::HTTP::Response[204, headers, []]
       end
 
-      class DeflateWrapper
-        def initialize(body)
-          @body = body
-          @deflate =
-            Zlib::Deflate.new(
-              Zlib::BEST_COMPRESSION,
-              -Zlib::MAX_WBITS,
-              Zlib::MAX_MEM_LEVEL,
-              Zlib::HUFFMAN_ONLY
-            )
-        end
-
-        def write(buf) =
-          @body.write(@deflate.deflate(buf, Zlib::SYNC_FLUSH))
-
-        def closed? =
-          @body.closed
-
-        def close
-          @body.write(@deflate.flush(Zlib::FINISH))
-          @deflate.close
-          @body.close
-        end
-      end
-
       def handle_session_start(request)
         session = Session.new(descriptor: @descriptor)
 
@@ -302,15 +278,11 @@ module VDOM
         headers = {
           "content-type" => "x-mayu/json-stream",
           "access-control-expose-headers" => SESSION_ID_HEADER_NAME,
+          "content-encoding" => "deflate-raw",
           **origin_header(request),
         }
 
-        body = Async::HTTP::Body::Writable.new
-
-        if request.headers["accept-encoding"] == "deflate-raw"
-          headers["content-encoding"] = "deflate-raw"
-          body = DeflateWrapper.new(body)
-        end
+        body = Compression::Writer.new
 
         body.write(
           JSON.generate([

@@ -5,16 +5,11 @@ export async function initInputStream(endpoint) {
   const res = await connect(endpoint)
 
   const contentEncoding = res.headers.get("content-encoding");
-  console.log(res.headers)
 
-  console.log({contentEncoding})
+  if (content
 
-  const stream =
-    contentEncoding && contentEncoding !== 'identity'
-    ? res.body.pipeThrough(new DecompressionStream(contentEncoding))
-    : res.body
-
-  return stream
+  return  res.body
+    .pipeThrough(new DecompressionStream('deflate-raw'))
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new JSONDecoderStream())
 }
