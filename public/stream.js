@@ -82,8 +82,8 @@ export class RAFQueue {
     this.raf = null;
   }
 
-  enqueue(msg) {
-    this.queue.push(msg);
+  enqueue(messages) {
+    messages.forEach((msg) => this.queue.push(msg));
     this.raf ||= requestAnimationFrame(() => this.flush());
   }
 

@@ -5,8 +5,7 @@
 
 module VDOM
   module Patches
-    CreateRoot = Data.define
-    DestroyRoot = Data.define
+    Initialize = Data.define(:id_tree)
 
     CreateElement = Data.define(:id, :type)
     CreateTextNode = Data.define(:id, :content)

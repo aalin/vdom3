@@ -50,16 +50,16 @@ module VDOM
 
     StyleSheet = Data.define(:content)
 
-    Callback = Data.define(:component, :method, :hash) do
-      def self.[](component, method) =
+    Callback = Data.define(:component, :method_name, :hash) do
+      def self.[](component, method_name) =
         new(
           component,
-          method,
-          [self, component, method].hash
+          method_name,
+          [self, component, method_name].hash
         )
 
       def same?(other) =
-        self.class === other && component == other.component && method == other.method
+        self.class === other && component == other.component && method_name == other.method_name
     end
 
     def self.same?(a, b) =

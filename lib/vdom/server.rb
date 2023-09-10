@@ -25,36 +25,39 @@ module VDOM
         @runtime.render(descriptor)
       end
 
-      def render
+      def render =
         @runtime.to_html
-      end
+      def dom_id_tree =
+        @runtime.dom_id_tree
 
       def run
-        @runtime.mount
+        @runtime.run do
+          @runtime.mount
 
-        barrier = Async::Barrier.new
+          barrier = Async::Barrier.new
 
-        barrier.async do
-          loop do
-            patches = @runtime.dequeue
+          barrier.async do
+            loop do
+              patches = @runtime.dequeue
 
-            serialized_patches = patches.map do
-              VDOM::Patches.serialize(_1)
+              serialized_patches = patches.map do
+                VDOM::Patches.serialize(_1)
+              end
+
+              @output.enqueue(serialized_patches)
             end
-
-            @output.enqueue(serialized_patches)
           end
-        end
 
-        barrier.async do
-        end
+          barrier.async do
+          end
 
-        barrier.async do
-          @stop.wait
-          barrier.stop
-        end
+          barrier.async do
+            @stop.wait
+            barrier.stop
+          end
 
-        barrier.wait
+          barrier.wait
+        end
       ensure
         @runtime.unmount
       end
@@ -117,7 +120,7 @@ module VDOM
         loop do
           sleep 5
           @output.enqueue(
-            VDOM::Patches.serialize(VDOM::Patches::Ping[current_ping_time])
+            VDOM::Patches.serialize([VDOM::Patches::Ping[current_ping_time]])
           )
         end
       end
@@ -186,7 +189,7 @@ module VDOM
         case request
         in path: "/favicon.ico"
           handle_favicon(request)
-      in path: "/runtime.js" | "/session.js" | "/stream.js"
+        in path: "/runtime.js" | "/session.js" | "/stream.js"
           handle_script(request)
         in path: "/.vdom", method: "OPTIONS"
           handle_options(request)
@@ -309,14 +312,17 @@ module VDOM
           body = DeflateWrapper.new(body)
         end
 
+        body.write(
+          JSON.generate([
+            Patches.serialize(Patches::Initialize[session.dom_id_tree.serialize])
+          ]) + "\n"
+        )
+
         headers[SESSION_ID_HEADER_NAME] = session.id
 
         task.async do |subtask|
-          @sessions.store(session.id, session)
-
           subtask.async do
             while msg = session.take
-              p msg
               body.write(JSON.generate(msg) + "\n")
             end
           end
@@ -340,6 +346,17 @@ module VDOM
           ]
         end
 
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+        puts "\e[31mSESSION: #{session.id}\e[0m"
+
         each_message(request) do |message|
           case message
           in "callback", String => callback_id, payload
@@ -348,7 +365,7 @@ module VDOM
             session.pong(time)
           end
         rescue => e
-          Console.logger.error(e)
+          Console.logger.error(self, e)
         end
 
         Protocol::HTTP::Response[204, origin_header(request), []]

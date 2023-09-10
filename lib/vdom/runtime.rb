@@ -68,6 +68,7 @@ module VDOM
         @parent = parent
         @root = parent.root
         @id = VNode.generate_id
+        puts "#{self.class.name} #{@id}"
       end
 
       def patch(&)
@@ -259,6 +260,7 @@ module VDOM
       end
 
       def dom_id_tree = @children.dom_id_tree
+      def dom_ids = @children.dom_ids
 
       def update(descriptor)
         @descriptor = descriptor
@@ -359,10 +361,6 @@ module VDOM
       def update(descriptor)
         @descriptor = descriptor
       end
-
-      def to_s
-        "Mayu.callback('#{@callback_id}',event)"
-      end
     end
 
     class VStyles < VNode
@@ -386,7 +384,21 @@ module VDOM
         def self.[](callback) =
           new(SecureRandom.alphanumeric(32), callback)
 
-        def callback_js = "Mayu.callback('#{id}',event)"
+        def call(payload)
+          method = callback.component.method(callback.method_name)
+
+          case method.parameters
+          when []
+            method.call
+          when [[:req, Symbol]]
+            method.call(payload)
+          when [[:keyrest, Symbol]]
+            method.call(**payload)
+          end
+        end
+
+        def callback_js =
+          "Mayu.callback(event,'#{id}')"
       end
 
       def initialize(...)
@@ -649,6 +661,7 @@ module VDOM
       @patches = Async::Queue.new
       @callbacks = {}
       @document = VDocument.new(nil, parent: self)
+      @running = false
     end
 
     def render(descriptor)
@@ -669,8 +682,22 @@ module VDOM
         puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
       end
 
-    def commit(patch_set) =
-      @patches.enqueue(patch_set.to_a)
+    def commit(patch_set)
+      if @running
+        @patches.enqueue(patch_set.to_a)
+      end
+    end
+
+    def run(&)
+      raise "already running" if @running
+
+      begin
+        @running = true
+        yield
+      ensure
+        @running = false
+      end
+    end
 
     def mount =
       @document.mount

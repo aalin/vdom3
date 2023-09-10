@@ -7,26 +7,14 @@ const startViewTransition =
 export default class Runtime {
   #nodeSet = new NodeSet();
 
-  constructor(tree) {
-    const visit = (domNode, idNode) => {
-      if (!domNode) return;
-      if (domNode.nodeName !== idNode.name) {
-        console.error(`Node ${idNode.id} should be ${nodeId.name}, but found ${domNode.nodeName}`)
-      }
-      this.#nodeSet.setNode(idNode.id, domNode);
-      if (!idNode.children) return;
-      idNode.children.forEach((child, i) => {
-        visit(domNode.childNodes[i], child);
-      });
-    };
-
-    visit(document.documentElement, tree)
-  }
-
   apply(patches) {
     patches.forEach((patch) => {
       const [name, ...args] = patch;
-      console.log(name, args)
+      console.debug(name, args)
+      const patchFn = Patches[name]
+      if (!patchFn) {
+        throw new Error(`Not implemented: ${name}`)
+      }
       Patches[name].apply(this.#nodeSet, args);
     })
   }
@@ -34,6 +22,10 @@ export default class Runtime {
 
 class NodeSet {
   #nodes = {};
+
+  clear() {
+    this.#nodes = {}
+  }
 
   deleteNode(id) {
     delete this.#nodes[id];
@@ -59,6 +51,22 @@ class NodeSet {
 }
 
 const Patches = {
+  Initialize(tree) {
+    const visit = (domNode, idNode) => {
+      if (!domNode) return;
+      if (domNode.nodeName !== idNode.name) {
+        console.error(`Node ${idNode.id} should be ${nodeId.name}, but found ${domNode.nodeName}`)
+      }
+      this.setNode(idNode.id, domNode);
+      if (!idNode.children) return;
+      idNode.children.forEach((child, i) => {
+        visit(domNode.childNodes[i], child);
+      });
+    };
+
+    this.clear()
+    visit(document.documentElement, tree)
+  },
   CreateElement(id, type) {
     this.setNode(id, document.createElement(type));
   },
