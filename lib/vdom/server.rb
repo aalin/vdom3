@@ -346,17 +346,6 @@ module VDOM
           ]
         end
 
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-        puts "\e[31mSESSION: #{session.id}\e[0m"
-
         each_message(request) do |message|
           case message
           in "callback", String => callback_id, payload
