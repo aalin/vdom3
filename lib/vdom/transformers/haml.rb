@@ -73,8 +73,6 @@ module VDOM
           Program(
             Statements(
               [
-                Comment("# frozen_string_literal: true", false),
-                # assign_const("Self", setup_component(styles)),
                 assign_const("Self", VarRef(Kw("self"))),
                 *setup,
                 create_render(render)
