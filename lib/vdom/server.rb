@@ -33,8 +33,6 @@ module VDOM
 
       def run
         @runtime.run do
-          @runtime.mount
-
           barrier = Async::Barrier.new
 
           barrier.async do
@@ -50,17 +48,12 @@ module VDOM
           end
 
           barrier.async do
-          end
-
-          barrier.async do
             @stop.wait
             barrier.stop
           end
 
           barrier.wait
         end
-      ensure
-        @runtime.unmount
       end
 
       def take =
@@ -295,13 +288,16 @@ module VDOM
         task.async do |subtask|
           subtask.async do
             while msg = session.take
+              p msg
               body.write(JSON.generate(msg) + "\n")
             end
+          ensure
+            body&.close
           end
 
-          session.run
-        ensure
-          body&.close
+          subtask.async do
+            session.run
+          end
         end
 
         Protocol::HTTP::Response[200, headers, body]

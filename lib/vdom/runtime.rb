@@ -72,19 +72,7 @@ module VDOM
       end
 
       def patch(&)
-        if Fiber[:patch_set]
-          yield Fiber[:patch_set]
-          return
-        end
-
-        patch_set = PatchSet.new
-
-        begin
-          yield Fiber[:patch_set] = patch_set
-        ensure
-          @root.commit(patch_set)
-          Fiber[:patch_set] = nil
-        end
+        @root.patch(&)
       end
 
       def traverse(&) =
@@ -104,7 +92,7 @@ module VDOM
         nil
 
       def task =
-        @parent.task
+        Async::Task.current
 
       def update_children_order =
         @parent.update_children_order
@@ -168,12 +156,15 @@ module VDOM
       end
 
       def mount
-        @children.mount
+        @task = Async do
+          @children.mount&.wait
+        ensure
+          @children.unmount
+        end
       end
 
-      def unmount
-        @children.unmount
-      end
+      def unmount =
+        @task&.stop
 
       def update_children_order
         nil
@@ -191,15 +182,38 @@ module VDOM
       end
 
       def mount
-        @children.mount
+        @task = Async do |task|
+          barrier = Async::Barrier.new
+          queue = Async::Queue.new
 
-        @task = init_task
+          @instance.define_singleton_method(:rerender!) do
+            queue.enqueue(:update!)
+          end
+
+          barrier.async do
+            @instance.mount
+          end
+
+          barrier.async do
+            @children.mount&.wait
+          end
+
+          loop do
+            queue.wait
+            @children.update(@instance.render)
+          end
+
+          barrier.wait
+        ensure
+          barrier.stop
+          @children.unmount
+          @instance.unmount
+        end
       end
 
       def unmount
-        @children.unmount
+        puts "Called unmount"
         @task&.stop
-        @instance.unmount
       end
 
       def traverse(&)
@@ -236,20 +250,6 @@ module VDOM
       private
 
       def init_task
-        Async do
-          queue = Async::Queue.new
-
-          @instance.define_singleton_method(:rerender!) do
-            queue.enqueue(:update!)
-          end
-
-          @instance.mount
-
-          loop do
-            queue.wait
-            @children.update(@instance.render)
-          end
-        end
       end
     end
 
@@ -267,17 +267,14 @@ module VDOM
         @children.update(get_slotted(@descriptor.props[:name]))
       end
 
-      def mount
+      def mount =
         @children.mount
-      end
 
-      def unmount
+      def unmount =
         @children.unmount
-      end
 
-      def to_s
+      def to_s =
         @children.to_s
-      end
     end
 
     class VChildren < VNode
@@ -294,11 +291,23 @@ module VDOM
       def to_s = @children.join
 
       def mount
-        @children.each(&:mount)
+        @task = Async do
+          barrier = Async::Barrier.new
+
+          @children.each do |child|
+            barrier.async do
+              child.mount&.wait
+            end
+          end
+
+          barrier.wait
+        rescue => e
+          p e
+        end
       end
 
       def unmount
-        @children.each(&:unmount)
+        @task&.stop
       end
 
       def traverse(&)
@@ -655,9 +664,8 @@ module VDOM
 
     attr_reader :session_id
 
-    def initialize(session_id:, task: Async::Task.current)
+    def initialize(session_id:)
       @session_id = session_id
-      @task = task
       @patches = Async::Queue.new
       @callbacks = {}
       @document = VDocument.new(nil, parent: self)
@@ -683,24 +691,34 @@ module VDOM
       end
 
     def commit(patch_set)
-      if @running
+      if @task
         @patches.enqueue(patch_set.to_a)
       end
     end
 
     def run(&)
-      raise "already running" if @running
+      raise "already running" if @task
 
-      begin
-        @running = true
-        yield
+      @task = Async do
+        puts "mounting document"
+        barrier = Async::Barrier.new
+
+        barrier.async do
+          @document.mount&.wait
+        end
+
+        barrier.async do
+          puts "yielding"
+          yield
+        end
+
+        barrier.wait
       ensure
-        @running = false
+        puts "unmounting"
+        @document.unmount
+        @task = nil
       end
     end
-
-    def mount =
-      @document.mount
 
     def dequeue =
       @patches.dequeue
@@ -720,6 +738,23 @@ module VDOM
 
     def callback(id, payload)
       @callbacks.fetch(id).call(payload)
+    end
+
+    def patch()
+      if @patch_set
+        yield @patch_set
+        return
+      end
+
+      @patch_set = PatchSet.new
+
+      begin
+        yield @patch_set
+      ensure
+        patch_set = @patch_set
+        @patch_set = nil
+        commit(patch_set)
+      end
     end
 
     def marshal_dump
