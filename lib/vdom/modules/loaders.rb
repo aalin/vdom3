@@ -5,6 +5,7 @@
 
 require_relative "../transformers/haml"
 require_relative "../transformers/ruby"
+require_relative "../transformers/css"
 
 module VDOM
   module Modules
@@ -44,8 +45,10 @@ module VDOM
 
       module StyleSheetLoader
         def self.load(source, path)
-          raise NotImplementedError,
-            "Use https://github.com/mayu-live/css"
+          VDOM::Modules::Mod.new(
+            Transformers::CSS.transform(source, path),
+            path
+          )
         end
       end
 

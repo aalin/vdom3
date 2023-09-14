@@ -19,8 +19,8 @@ module VDOM
         super(@deflate.deflate(buf, Zlib::SYNC_FLUSH))
 
       def close(error = nil)
-        @queue.enqueue(@deflate.flush(Zlib::FINISH))
-        @deflate.close
+        @queue.enqueue(@deflate.flush(Zlib::FINISH)) rescue nil
+        @deflate.close rescue nil
         super
       end
     end

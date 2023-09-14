@@ -5,28 +5,147 @@
 
 require "base64"
 require "digest/sha2"
+require "mayu/css"
+require "syntax_tree"
+require_relative "../style_sheet"
 
 module VDOM
   module Transformers
     class CSS
-      Result = Data.define(:filename, :source, :classes)
+      include SyntaxTree::DSL
 
-      def self.transform(source:, source_path:, source_line:)
-        filename = Base64.urlsafe_encode64(Digest::SHA256.digest(source)) + ".css"
-        classes = {}
-        Result[filename, source, classes]
+      DEPENDENCY_CONST_PREFIX = "Dep_"
+      CODE_CONST_NAME = "CODE"
+      CONTENT_HASH_CONST_NAME = "CONTENT_HASH"
+
+      def self.transform(source_path, source)
+        Mayu::CSS.transform(source_path, source)
+          .then { new(_1).build_ast }
+          .then { SyntaxTree::Formatter.format("", _1) }
       end
 
-      def self.merge_classnames(transform_results)
-        classnames = Hash.new { |h, k| h[k] = Set.new }
+      def initialize(parse_result)
+        @parse_result = parse_result
+      end
 
-        transform_results.each do |transform_result|
-          transform_result.classes.each do |source, target|
-            classnames[source].add(target)
-          end
+      def build_ast
+        ClassDeclaration(
+          ConstPathRef(
+            VarRef(Kw("self")),
+            Const("Export")
+          ),
+          ConstPathRef(
+            VarRef(Const("VDOM")),
+            ConstPathRef(
+              VarRef(Const("StyleSheet")),
+              Const("Base")
+            )
+          ),
+          BodyStmt(Statements([
+            *@parse_result.dependencies.map do |dep|
+              dep => { placeholder:, url: }
+
+              Assign(
+                VarField(Const(DEPENDENCY_CONST_PREFIX + placeholder)),
+                Command(
+                  Ident("import"),
+                  Args([
+                    StringLiteral([TStringContent(url)], '"'),
+                  ]),
+                  nil
+                ),
+              )
+            end,
+            Assign(
+              VarField(Const(CODE_CONST_NAME)),
+              Heredoc(
+                HeredocBeg("<<CSS"),
+                HeredocEnd("CSS"),
+                nil,
+                build_code_heredoc
+              )
+            ),
+            Assign(
+              VarField(Const(CONTENT_HASH_CONST_NAME)),
+              CallNode(
+                ConstPathRef(
+                  VarRef(Const("Digest")),
+                  Const("SHA256")
+                ),
+                Period("."),
+                Ident("digest"),
+                ArgParen(Args([
+                  VarRef(Const(CODE_CONST_NAME))
+                ]))
+              )
+            ),
+            Assign(
+              VarField(Const("CLASSES")),
+              HashLiteral(
+                LBrace("{"),
+                @parse_result.classes.sort_by(&:first).map do |key, value|
+                  Assoc(
+                    Label("#{key}:"),
+                    StringLiteral(
+                      [TStringContent(value.to_s)],
+                      '"'
+                    )
+                  )
+                end +
+                @parse_result.elements.sort_by(&:first).map do |key, value|
+                  Assoc(
+                    Label("__#{key}:"),
+                    StringLiteral(
+                      [TStringContent(value.to_s)],
+                      '"'
+                    )
+                  )
+                end
+              )
+            ),
+          ]), nil, nil, nil, nil)
+        )
+      end
+
+      private
+
+      def build_code_heredoc
+        parts = []
+        remains = @parse_result.code
+
+        @parse_result.dependencies.map do |dep|
+          dep => { placeholder: }
+          remains.split(placeholder, 2) => [part, remains]
+
+          parts.push(
+            TStringContent(part),
+            StringEmbExpr(
+              Statements([
+                CallNode(
+                  nil,
+                  nil,
+                  Ident("encode_uri"),
+                  ArgParen(
+                    Args([
+                      CallNode(
+                        VarRef(Const(DEPENDENCY_CONST_PREFIX + placeholder)),
+                        Period("."),
+                        Ident("public_path"),
+                        nil
+                      )
+                    ])
+                  )
+                ),
+              ])
+            )
+          )
         end
 
-        classnames.transform_values { _1.join(" ") }
+        unless remains.empty?
+          parts.push(TStringContent(remains))
+        end
+
+        parts
       end
     end
   end

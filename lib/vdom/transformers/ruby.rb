@@ -78,7 +78,7 @@ module VDOM
                 Const("Refinements")
               )
             ]),
-          nil
+            nil
           )
         ]
       end

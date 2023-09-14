@@ -13,6 +13,7 @@ require "syntax_tree"
 require "syntax_tree/haml"
 require_relative "css"
 require_relative "mutation_visitor"
+require_relative "../style_sheet"
 
 module VDOM
   module Transformers
@@ -75,6 +76,29 @@ module VDOM
               [
                 assign_const("Self", VarRef(Kw("self"))),
                 *setup,
+                ConstPathRef(
+                  CallNode(
+                    ConstPathRef(
+                      ConstPathRef(
+                        VarRef(Const("VDOM")),
+                        Const("Modules")
+                      ),
+                      Const("Mod")
+                    ),
+                    Period("."),
+                    Ident("new"),
+                    ArgParen(
+                      Args([
+                        string_literal(CSS.transform(
+                          @options.source_path_without_extension + ".haml (inline css)",
+                          styles.join("\n"),
+                        )),
+                        string_literal("path")
+                      ])
+                    )
+                  ),
+                  Const("Export")
+                ),
                 create_render(render)
               ]
             )
@@ -91,27 +115,6 @@ module VDOM
               TopConstRef(const)
             end
           end
-        end
-
-        def setup_component(styles)
-          CallNode(
-            nil,
-            nil,
-            Ident("setup_component"),
-            ArgParen(
-              Args(
-                [
-                  BareAssocHash(
-                    assocs(
-                      assets:
-                        array(styles.map { string_literal(_1.filename) }),
-                      styles: props_hash(CSS.merge_classnames(styles))
-                    )
-                  )
-                ]
-              )
-            )
-          )
         end
 
         def assocs(**kwargs)
@@ -697,12 +700,7 @@ module VDOM
           in { name: "ruby", text: }
             @builder.ruby_script(parse_ruby(text)) if text
           in { name: "css", text: }
-            CSS.transform(
-              source: text,
-              source_path:
-                @options.source_path_without_extension + ".haml (inline css)",
-              source_line: node.line
-            )
+            text
           in { name: "plain", text: }
             case text.inspect.each_line.to_a
             in []
