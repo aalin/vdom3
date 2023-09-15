@@ -14,21 +14,24 @@ module VDOM
     class CSS
       include SyntaxTree::DSL
 
-      DEPENDENCY_CONST_PREFIX = "Dep_"
-      CODE_CONST_NAME = "CODE"
-      CONTENT_HASH_CONST_NAME = "CONTENT_HASH"
-
       def self.transform(source_path, source)
         Mayu::CSS.transform(source_path, source)
           .then { new(_1).build_ast }
           .then { SyntaxTree::Formatter.format("", _1) }
       end
 
-      def initialize(parse_result)
+      def initialize(parse_result, dependency_const_prefix: "Dep_", code_const_name: "CODE", content_hash_const_name: "CONTENT_HASH")
         @parse_result = parse_result
+        @dependency_const_prefix = dependency_const_prefix
+        @code_const_name = code_const_name
+        @content_hash_const_name = content_hash_const_name
       end
 
       def build_ast
+        build_class_ast(build_statements_ast)
+      end
+
+      def build_class_ast(statements)
         ClassDeclaration(
           ConstPathRef(
             VarRef(Kw("self")),
@@ -41,75 +44,94 @@ module VDOM
               Const("Base")
             )
           ),
-          BodyStmt(Statements([
-            *@parse_result.dependencies.map do |dep|
-              dep => { placeholder:, url: }
-
-              Assign(
-                VarField(Const(DEPENDENCY_CONST_PREFIX + placeholder)),
-                Command(
-                  Ident("import"),
-                  Args([
-                    StringLiteral([TStringContent(url)], '"'),
-                  ]),
-                  nil
-                ),
-              )
-            end,
-            Assign(
-              VarField(Const(CODE_CONST_NAME)),
-              Heredoc(
-                HeredocBeg("<<CSS"),
-                HeredocEnd("CSS"),
-                nil,
-                build_code_heredoc
-              )
-            ),
-            Assign(
-              VarField(Const(CONTENT_HASH_CONST_NAME)),
-              CallNode(
-                ConstPathRef(
-                  VarRef(Const("Digest")),
-                  Const("SHA256")
-                ),
-                Period("."),
-                Ident("digest"),
-                ArgParen(Args([
-                  VarRef(Const(CODE_CONST_NAME))
-                ]))
-              )
-            ),
-            Assign(
-              VarField(Const("CLASSES")),
-              HashLiteral(
-                LBrace("{"),
-                @parse_result.classes.sort_by(&:first).map do |key, value|
-                  Assoc(
-                    Label("#{key}:"),
-                    StringLiteral(
-                      [TStringContent(value.to_s)],
-                      '"'
-                    )
-                  )
-                end +
-                @parse_result.elements.sort_by(&:first).map do |key, value|
-                  Assoc(
-                    Label("__#{key}:"),
-                    StringLiteral(
-                      [TStringContent(value.to_s)],
-                      '"'
-                    )
-                  )
-                end
-              )
-            ),
-          ]), nil, nil, nil, nil)
+          BodyStmt(statements, nil, nil, nil, nil)
         )
+      end
+
+      def build_statements_ast
+        Statements([
+          *build_imports,
+          Assign(
+            VarField(Const(@code_const_name)),
+            build_code_heredoc,
+          ),
+          Assign(
+            VarField(Const(@content_hash_const_name)),
+            build_content_hash_string
+          ),
+          Assign(
+            VarField(Const("CLASSES")),
+            build_classes_hash
+          ),
+        ])
       end
 
       private
 
+      def build_imports
+        @parse_result.dependencies.map do |dep|
+          dep => { placeholder:, url: }
+
+          Assign(
+            VarField(Const(@dependency_const_prefix + placeholder)),
+            build_import(url)
+          )
+        end
+      end
+
+      def build_import(url)
+        Command(
+          Ident("import"),
+          Args([
+            StringLiteral([TStringContent(url)], '"'),
+          ]),
+          nil
+        )
+      end
+
+      def build_content_hash_string
+        StringLiteral(
+          [TStringContent(
+            @parse_result.code
+              .then { Digest::SHA256.digest(_1) }
+              .then { Base64.urlsafe_encode64(_1, padding: false) }
+          )],
+          '"'
+        )
+      end
+
+      def build_classes_hash
+        HashLiteral(
+          LBrace("{"),
+          build_classes_assocs,
+        )
+      end
+
+      def build_classes_assocs
+        {
+          **@parse_result.classes,
+          **@parse_result.elements.transform_keys { "__#{_1}" }
+        }.sort_by(&:first).map do |key, value|
+          Assoc(
+            Label("#{key}:"),
+            StringLiteral(
+              [TStringContent(value.to_s)],
+              '"'
+            )
+          )
+        end
+      end
+
       def build_code_heredoc
+        Heredoc(
+          HeredocBeg("<<CSS"),
+          HeredocEnd("CSS"),
+          nil,
+          build_code_heredoc_inner
+        )
+      end
+
+      def build_code_heredoc_inner
         parts = []
         remains = @parse_result.code
 
@@ -128,7 +150,7 @@ module VDOM
                   ArgParen(
                     Args([
                       CallNode(
-                        VarRef(Const(DEPENDENCY_CONST_PREFIX + placeholder)),
+                        VarRef(Const(@dependency_const_prefix + placeholder)),
                         Period("."),
                         Ident("public_path"),
                         nil
