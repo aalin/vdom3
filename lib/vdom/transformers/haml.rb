@@ -139,12 +139,7 @@ module VDOM
                   Ident("render"),
                   nil,
                   BodyStmt(
-                    Statements(
-                      [
-                        # set_fiber_local("current_component", VarRef(Kw("self"))),
-                        *statements
-                      ]
-                    ),
+                    Statements(statements),
                     nil,
                     nil,
                     nil,
@@ -154,16 +149,6 @@ module VDOM
               ]
             ),
             nil
-          )
-        end
-
-        def set_fiber_local(ident, value)
-          Assign(
-            ARefField(
-              VarRef(Const("Fiber")),
-              Args([SymbolLiteral(Ident(ident))])
-            ),
-            value
           )
         end
 
@@ -324,18 +309,6 @@ module VDOM
               )
             )
           end
-        end
-
-        def compute(node)
-          # MethodAddBlock(
-          #   call_helpers(:compute),
-          #   BlockNode(
-          #     Kw("do"),
-          #     nil,
-          #     BodyStmt(Statements([node]), nil, nil, nil, nil)
-          #   )
-          # )
-          node
         end
 
         def mayu_const_path
@@ -601,11 +574,11 @@ module VDOM
             .map do |chunk|
               case chunk
               in [{ type: :script, value: { keyword: "if" } }, *]
-                @builder.compute(group_condition(:if, chunk))
+                group_condition(:if, chunk)
               in [{ type: :script, value: { keyword: "case" } }, *]
-                @builder.compute(group_condition(:case, chunk))
+                group_condition(:case, chunk)
               in [{ type: :script, value: { keyword: "begin" } }, *]
-                @builder.compute(group_condition(:begin, chunk))
+                group_condition(:begin, chunk)
               else
                 chunk.map { _1.accept(self) }
               end
@@ -751,7 +724,7 @@ module VDOM
               @builder.Args(visit_tag_children(node.children))
             )
           else
-            @builder.compute(transform_script_node(node))
+            transform_script_node(node)
           end
         end
 
