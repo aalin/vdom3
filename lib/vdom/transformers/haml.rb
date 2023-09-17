@@ -75,8 +75,9 @@ module VDOM
             Statements(
               [
                 assign_const("Self", VarRef(Kw("self"))),
-                *setup,
+                assign_const("FILENAME", VarRef(Kw("__FILE__"))),
                 assign_styles(styles),
+                *setup,
                 create_render(render)
               ].select { !!_1 }
             )

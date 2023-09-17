@@ -43,6 +43,10 @@ module VDOM
             Args([
               BareAssocHash([
                 Assoc(
+                  Label("component_class:"),
+                  VarRef(Kw("self")),
+                ),
+                Assoc(
                   Label("content_hash:"),
                   build_content_hash_string
                 ),

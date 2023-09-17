@@ -1,29 +1,42 @@
 module VDOM
   NullStyleSheet = Data.define(:component_class) do
-    def [](*selectors)
-      unless selectors.all? { _1.start_with?("__") }
-        Console.logger.error("#{component_class.display_name} has no stylesheet")
+    def [](*class_names)
+      unless class_names.all? { _1.start_with?("__") }
+        Console.logger.error(component_class.filename, "\e[31mNo stylesheet defined\e[0m")
       end
 
       []
     end
   end
 
-  StyleSheet = Data.define(:content_hash, :classes, :content) do
+  StyleSheet = Data.define(:component_class, :content_hash, :classes, :content) do
     def filename =
       "#{content_hash}.css"
 
-    def [](*selectors)
-      selectors.flatten.map do |selector|
-        case selector
+    def [](*class_names)
+      class_names.flatten.map do |class_name|
+        case class_name
         in String
-          selector
+          class_name
         in Hash
-          self[*selector.filter { _2 }.keys]
+          self[*class_name.filter { _2 }.keys]
         in Symbol
-          classes.fetch(selector) do
-            unless selector.start_with?("__")
-              Console.logger.error("Could not find #{selector.inspect}")
+          classes.fetch(class_name) do
+            unless class_name.start_with?("__")
+
+            available_class_names = classes.keys
+              .reject { _1.start_with?("__") }
+              .map { _1.to_s.prepend("  ") }
+              .join("\n")
+
+              Console.logger.error(
+                component_class.filename,
+                format(<<~MSG, class_name, available_class_names)
+                  Could not find class: \e[1;31m.%s\e[0m
+                  Available class names:
+                  \e[1;33m%s\e[0m
+                MSG
+              )
               nil
             end
           end

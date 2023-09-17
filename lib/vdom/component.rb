@@ -20,6 +20,7 @@ module VDOM
         )
 
       def self.display_name = name[/[^:]+\z/]
+      def self.filename = self::FILENAME
 
       def self.merge_props(*sources)
         result =

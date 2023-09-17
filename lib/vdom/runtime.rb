@@ -68,7 +68,6 @@ module VDOM
         @parent = parent
         @root = parent.root
         @id = VNode.generate_id
-        puts "#{self.class.name} #{@id}"
       end
 
       def patch(&)
