@@ -19,13 +19,6 @@ module VDOM
       def self.calculate_hash(type, key, slot, props) =
         [self, type, key, slot, type == :input && props[:type]].hash
 
-      def self.or_string(descriptor) =
-        if self === descriptor
-          descriptor
-        else
-          (descriptor && descriptor.to_s) || nil
-        end
-
       def same?(other) =
         if self.class === other && type == other.type && key == other.key
           if type == :input
@@ -61,6 +54,13 @@ module VDOM
       def same?(other) =
         self.class === other && component == other.component && method_name == other.method_name
     end
+
+    def self.descriptor_or_string(descriptor) =
+      if descriptor in Element | Text | Comment
+        descriptor
+      else
+        (descriptor && descriptor.to_s) || nil
+      end
 
     def self.same?(a, b) =
       get_hash(a) == get_hash(b)

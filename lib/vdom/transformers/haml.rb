@@ -170,6 +170,20 @@ module VDOM
           call_helpers(:slot, [name].compact)
         end
 
+        def comment(content)
+          CallNode(
+            ConstPathRef(
+              mayu_const_path,
+              Const("H")
+            ),
+            Period("."),
+            Ident("comment"),
+            ArgParen(Args([
+              StringLiteral([TStringContent(content)], '"')
+            ]))
+          )
+        end
+
         def tag(name, children, attrs_to_merge)
           ARef(
             ConstPathRef(
@@ -414,8 +428,19 @@ module VDOM
           )
         end
 
-        def visit_haml_comment(node)
-          nil
+        def visit_comment(node)
+          @builder.comment(
+            if node.children
+              node.children.map do |child|
+                formatter = SyntaxTree::Haml::Format::Formatter.new("", +"", 80)
+                child.format(formatter)
+                formatter.flush
+                formatter.output
+              end.join("\n")
+            else
+              @builder.comment(node.value[:text])
+            end
+          )
         end
 
         def visit_slot_tag(node)

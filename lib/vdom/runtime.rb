@@ -120,14 +120,14 @@ module VDOM
           VElement.new(descriptor.with(type: :head), parent: self)
         in Descriptors::Element
           VElement.new(descriptor, parent: self)
+        in Descriptors::Comment
+          VComment.new(descriptor, parent: self)
         in Descriptors::Text
           VText.new(descriptor, parent: self)
         in String | Numeric
           VText.new(descriptor.to_s, parent: self)
         in Array
           VChildren.new(descriptor, parent: self)
-        in Descriptors::Comment
-          VComment.new(descriptor, parent: self)
         in NilClass
           nil
         else
@@ -340,7 +340,7 @@ module VDOM
       def normalize_descriptors(descriptors)
         Array(descriptors)
           .flatten
-          .map { Descriptors::Element.or_string(_1) }
+          .map { Descriptors.descriptor_or_string(_1) }
           .compact
           .then { insert_comments_between_strings(_1) }
       end
