@@ -285,18 +285,15 @@ module VDOM
 
         headers[SESSION_ID_HEADER_NAME] = session.id
 
-        task.async do |subtask|
-          subtask.async do
+        task.async do
+          session_task = session.run
+
+          begin
             while msg = session.take
-              p msg
               body.write(JSON.generate(msg) + "\n")
             end
           ensure
-            body&.close
-          end
-
-          subtask.async do
-            session.run
+            session_task.stop
           end
         end
 
