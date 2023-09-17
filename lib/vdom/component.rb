@@ -19,7 +19,31 @@ module VDOM
           caller.first.split(":", 2).first
         )
 
-      def self.title = name[/[^:]+\z/]
+      def self.display_name = name[/[^:]+\z/]
+
+      def self.merge_props(*sources)
+        result =
+          sources.reduce do |result, hash|
+            result.merge(hash) do |key, old_value, new_value|
+              case key
+              in :class
+                [old_value, new_value].flatten
+              else
+                new_value
+              end
+            end
+          end
+
+        if classes = result.delete(:class)
+          classnames = self::Styles[*Array(classes)]
+
+          unless classnames.empty?
+            result[:class] = classnames.join(" ")
+          end
+        end
+
+        result
+      end
 
       def initialize(**) = nil
 

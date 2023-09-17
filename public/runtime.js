@@ -79,6 +79,9 @@ const Patches = {
   RemoveNode(id) {
     this.deleteNode(id);
   },
+  SetClassName(id, value) {
+    this.getNode(id).className = value
+  },
   SetAttribute(id, name, value) {
     this.getNode(id).setAttribute(name, value);
   },

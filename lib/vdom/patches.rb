@@ -18,6 +18,8 @@ module VDOM
     SetAttribute = Data.define(:id, :name, :value)
     RemoveAttribute = Data.define(:id, :name)
 
+    SetClassName = Data.define(:id, :class_name)
+
     SetListener = Data.define(:id, :name, :listener_id)
     RemoveListener = Data.define(:id, :name, :listener_id)
 

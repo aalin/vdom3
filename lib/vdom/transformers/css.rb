@@ -16,8 +16,13 @@ module VDOM
 
       def self.transform(source_path, source)
         Mayu::CSS.transform(source_path, source)
-          .then { new(_1).build_ast }
+          .then { new(_1).build_class_ast }
           .then { SyntaxTree::Formatter.format("", _1) }
+      end
+
+      def self.transform_inline(source_path, source, **)
+        Mayu::CSS.transform(source_path, source)
+          .then { new(_1, **).build_inline_ast }
       end
 
       def initialize(parse_result, dependency_const_prefix: "Dep_", code_const_name: "CODE", content_hash_const_name: "CONTENT_HASH")
@@ -27,11 +32,35 @@ module VDOM
         @content_hash_const_name = content_hash_const_name
       end
 
-      def build_ast
-        build_class_ast(build_statements_ast)
+      def build_inline_ast
+        Statements([
+          *build_imports,
+          ARef(
+            ConstPathRef(
+              VarRef(Const("VDOM")),
+              Const("StyleSheet")
+            ),
+            Args([
+              BareAssocHash([
+                Assoc(
+                  Label("content_hash:"),
+                  build_content_hash_string
+                ),
+                Assoc(
+                  Label("classes:"),
+                  build_classes_hash
+                ),
+                Assoc(
+                  Label("content:"),
+                  build_code_heredoc,
+                )
+              ])
+            ])
+          )
+        ])
       end
 
-      def build_class_ast(statements)
+      def build_class_ast
         ClassDeclaration(
           ConstPathRef(
             VarRef(Kw("self")),
@@ -44,7 +73,7 @@ module VDOM
               Const("Base")
             )
           ),
-          BodyStmt(statements, nil, nil, nil, nil)
+          BodyStmt(build_statements_ast, nil, nil, nil, nil)
         )
       end
 
@@ -53,7 +82,7 @@ module VDOM
           *build_imports,
           Assign(
             VarField(Const(@code_const_name)),
-            build_code_heredoc,
+            build_code_heredoc
           ),
           Assign(
             VarField(Const(@content_hash_const_name)),

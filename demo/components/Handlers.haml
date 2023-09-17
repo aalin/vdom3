@@ -25,8 +25,8 @@
 
 %fieldset
   %legend Handlers test
-  %output{
-    style: { display: 'block', font_size: 2.em }
+  %output.foobar{
+    style: { display: 'block', font_size: 2.em },
   }= @count
   %Button(onclick=handle_increment) Increment
   %Button(onclick=handle_decrement) Decrement

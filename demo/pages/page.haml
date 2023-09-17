@@ -16,7 +16,7 @@
   %Counter
   %ul
     = items.to_enum.with_index.map do |item, i|
-      %li[i](foo="bar"){class: i.zero? && "first"}
+      %li[i](foo="bar"){class: i.zero? && :first}
         %h3
           %span> Static
           %span= item
@@ -24,6 +24,10 @@
           = item.each_char.with_index.map do |char, j|
             %li[j]= char
 :css
-  h2 {
+  h3 {
     background: #f0f;
+  }
+
+  .subtitle {
+    font-weight: bold;
   }

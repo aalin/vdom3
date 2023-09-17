@@ -177,7 +177,7 @@ module VDOM
 
         @instance = @descriptor.type.allocate
         @instance.instance_variable_set(:@props, @descriptor.props)
-        @instance.send(:initialize, **@descriptor.props)
+        @instance.send(:initialize)
         @children = VChildren.new(@instance.render, parent: self)
       end
 
@@ -301,8 +301,6 @@ module VDOM
           end
 
           barrier.wait
-        rescue => e
-          p e
         end
       end
 
@@ -535,7 +533,12 @@ module VDOM
           [prop, old]
         end
 
-        patches << Patches::SetAttribute[@id, prop, new.to_s]
+        if prop == :class
+          patches << Patches::SetClassName[@id, new.to_s]
+        else
+          patches << Patches::SetAttribute[@id, prop, new.to_s]
+        end
+
         [prop, new]
       end
 

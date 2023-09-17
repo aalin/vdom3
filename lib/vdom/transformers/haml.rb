@@ -76,33 +76,32 @@ module VDOM
               [
                 assign_const("Self", VarRef(Kw("self"))),
                 *setup,
-                ConstPathRef(
-                  CallNode(
-                    ConstPathRef(
-                      ConstPathRef(
-                        VarRef(Const("VDOM")),
-                        Const("Modules")
-                      ),
-                      Const("Mod")
-                    ),
-                    Period("."),
-                    Ident("new"),
-                    ArgParen(
-                      Args([
-                        string_literal(CSS.transform(
-                          @options.source_path_without_extension + ".haml (inline css)",
-                          styles.join("\n"),
-                        )),
-                        string_literal("path")
-                      ])
-                    )
-                  ),
-                  Const("Export")
-                ),
+                assign_styles(styles),
                 create_render(render)
-              ]
+              ].select { !!_1 }
             )
           ).accept(StateAndPropsTransformer.new.visitor)
+        end
+
+        def assign_styles(styles)
+          assign_const(
+            "Styles",
+            if styles.empty?
+              ARef(
+                ConstPathRef(
+                  VarRef(Const("VDOM")),
+                  Const("NullStyleSheet")
+                ),
+                Args([VarRef(Kw("self"))])
+              )
+            else
+              CSS.transform_inline(
+                @options.source_path_without_extension + ".haml (inline css)",
+                styles.join("\n"),
+                dependency_const_prefix: "CSS_Dep_"
+              )
+            end
+          )
         end
 
         def const_path(*names)
@@ -242,10 +241,14 @@ module VDOM
           HashLiteral(
             LBrace("{"),
             attrs.map do |key, value|
-              if key.to_s == "class" && value in String
+              if key.to_s == "class"
                 Assoc(
                   SymbolLiteral(Ident(key.to_s)),
-                  first_or_array(value.split.map { sym(_1) })
+                  first_or_array(value.to_s.split.map { sym(_1) })
+                  # ARef(
+                  #   VarRef(Const("Styles")),
+                  #   Args(value.to_s.split.map { sym(_1) })
+                  # )
                 )
               else
                 Assoc(
@@ -357,10 +360,15 @@ module VDOM
 
         def call_helpers(method, *args)
           CallNode(
-            mayu_const_path,
+            CallNode(
+              VarRef(Kw("self")),
+              Period("."),
+              Ident("class"),
+              nil
+            ), # mayu_const_path,
             Period("."),
             Ident(method.to_s),
-            wrap_args([VarRef(Kw("self")), *args.flatten.compact])
+            wrap_args([*args.flatten.compact])
           )
         end
 
@@ -470,9 +478,7 @@ module VDOM
 
           attrs = []
 
-          if @options.transform_elements_to_classes
-            attrs.push(@builder.props_hash(class: :"__#{name}"))
-          end
+          attrs.push(@builder.props_hash(class: :"__#{name}"))
 
           attrs.push(@builder.props_hash(attributes)) unless attributes.empty?
 
