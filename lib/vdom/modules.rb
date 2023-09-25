@@ -3,7 +3,6 @@
 # Copyright Andreas Alin <andreas.alin@gmail.com>
 # License: AGPL-3.0
 
-require "bundler/setup"
 require "filewatcher"
 require "pathname"
 
@@ -85,32 +84,36 @@ module VDOM
       end
 
       def import(path, source_file = "/")
-        resolved = @resolver.resolve(path, File.dirname(source_file))
+        resolved_path = @resolver.resolve(path, File.dirname(source_file))
 
-        if found = @graph.get_obj(resolved)
-          if @graph.include?(source_file.to_s)
-            @graph.add_dependency(source_file.to_s, resolved)
-          end
-
-          return found::Export
-        end
-
-        source = File.read(File.join(@root, resolved))
-
-        mod =
-          Loaders.load(
-            source,
-            resolved
-          )
-
-        @graph.add_node(resolved, mod)
+        mod = load_module(resolved_path)
 
         if @graph.include?(source_file.to_s)
-          @graph.add_dependency(source_file.to_s, resolved)
+          @graph.add_dependency(source_file.to_s, resolved_path)
         end
 
-        mod::Export
+        mod && mod::Export
       end
+
+      def load_module(resolved_path)
+        if found = @graph.get_obj(resolved_path)
+          return found
+        end
+
+        absolute_path = File.join(@root, resolved_path)
+
+        mod =
+          if File.exist?(absolute_path)
+            Loaders.load(File.read(absolute_path), resolved_path)
+          end
+
+        @graph.add_node(resolved_path, mod)
+
+        mod
+      end
+
+      def add_dependency(source, target) =
+        @graph.add_dependency(source.to_s, target.to_s)
 
       def created(path)
         parts = path.delete_prefix("/").split("/")
