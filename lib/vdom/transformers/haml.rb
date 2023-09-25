@@ -173,10 +173,7 @@ module VDOM
 
         def comment(content)
           CallNode(
-            ConstPathRef(
-              mayu_const_path,
-              Const("H")
-            ),
+            h_const,
             Period("."),
             Ident("comment"),
             ArgParen(Args([
@@ -185,12 +182,13 @@ module VDOM
           )
         end
 
+        def h_const
+          Const("H")
+        end
+
         def tag(name, children, attrs_to_merge)
           ARef(
-            ConstPathRef(
-              mayu_const_path,
-              Const("H")
-            ),
+            h_const,
             Args(
               [
                 tag_name_or_class(name),
@@ -333,10 +331,7 @@ module VDOM
 
         def create_callback(name)
           CallNode(
-            ConstPathRef(
-              mayu_const_path,
-              Const("H")
-            ),
+            h_const,
             Period("."),
             Ident("callback"),
             ArgParen(Args([
