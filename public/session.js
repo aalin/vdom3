@@ -23,9 +23,11 @@ class PatchStream extends WritableStream {
   }
 }
 
+const SESSION_PATH = "/.mayu/session"
+
 const sessionId = import.meta.url.split("#").at(-1)
 
-const endpoint = `/.vdom/session/${sessionId}`
+const endpoint = `${SESSION_PATH}/${sessionId}`
 const input = await initInputStream(endpoint)
 const output = initCallbackStream(endpoint)
 

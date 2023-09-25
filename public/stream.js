@@ -1,3 +1,6 @@
+// Copyright Andreas Alin <andreas.alin@gmail.com>
+// License: AGPL-3.0
+
 const STREAM_MIME_TYPE = "x-mayu/json-stream";
 const STREAM_CONTENT_ENCODING = "deflate-raw";
 
@@ -22,7 +25,7 @@ export async function connect(endpoint) {
 
   const res = await fetch(endpoint, {
     method: "GET",
-    mode: "cors",
+    credentials: "include",
     headers: new Headers({
       accept: STREAM_MIME_TYPE,
       "accept-encoding": acceptEncoding,

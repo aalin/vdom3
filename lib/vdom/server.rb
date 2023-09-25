@@ -4,6 +4,8 @@
 # License: AGPL-3.0
 
 require "async"
+require "async/io/trap"
+require "async/barrier"
 require "async/queue"
 require "async/http/endpoint"
 require "async/http/protocol/response"
@@ -14,10 +16,16 @@ require_relative "compression"
 module VDOM
   class Server
     class Session
+      class InvalidTokenError < StandardError
+      end
+
       attr_reader :id
+      attr_reader :token
 
       def initialize(descriptor:)
         @id = SecureRandom.alphanumeric(32)
+        @token = SessionToken.generate
+
         @input = Async::Queue.new
         @output = Async::Queue.new
         @stop = Async::Condition.new
@@ -30,6 +38,9 @@ module VDOM
         @runtime.to_html
       def dom_id_tree =
         @runtime.dom_id_tree
+
+      def stop =
+        @stop.signal
 
       def run
         @runtime.run do
@@ -133,6 +144,62 @@ module VDOM
       end
     end
 
+    module SessionToken
+      TOKEN_LENGTH = 64
+
+      def self.validate!(token) =
+        unless valid_format?(token)
+          raise InvalidTokenError
+        end
+
+      def self.valid_format?(token) =
+        token.match?(/\A[[:alnum:]]{#{TOKEN_LENGTH}}\z/)
+
+      def self.generate =
+        SecureRandom.alphanumeric(TOKEN_LENGTH)
+
+      def self.equal?(a, b) =
+        if a.length == b.length
+          OpenSSL.fixed_length_secure_compare(a, b)
+        else
+          false
+        end
+    end
+
+    class SessionStore
+      class SessionNotFound < StandardError
+      end
+
+      class InvalidToken < StandardError
+      end
+
+      TIMEOUT_SECONDS = 10
+
+      def initialize
+        @sessions = {}
+      end
+
+      def authenticate(id, token)
+        session = @sessions.fetch(id) { raise SessionNotFound }
+        SessionToken.equal?(session.token, token) && session
+      end
+
+      def store(session) =
+        @sessions.store(session.id, session)
+
+      def stop! =
+        @sessions.each_value(&:stop)
+
+      def clear_stale
+        @sessions.delete_if do |session|
+          if Async::Clock.now - session.last_update > TIMEOUT_SECONDS
+            session.stop
+            true
+          end
+        end
+      end
+    end
+
     module RequestRefinements
       refine Async::HTTP::Protocol::HTTP2::Request do
         def deconstruct_keys(keys)
@@ -148,9 +215,10 @@ module VDOM
     end
 
     class App
-      using RequestRefinements
+      class TokenCookieNotSetError < StandardError
+      end
 
-      SESSION_ID_HEADER_NAME = "x-vdom-session-id"
+      using RequestRefinements
 
       ALLOW_HEADERS = Ractor.make_shareable({
         "access-control-allow-methods" => "GET, POST, OPTIONS",
@@ -158,7 +226,6 @@ module VDOM
           "content-type",
           "accept",
           "accept-encoding",
-          SESSION_ID_HEADER_NAME,
         ].join(", ")
       })
 
@@ -171,9 +238,12 @@ module VDOM
       def initialize(descriptor:, public_path:)
         @descriptor = descriptor
         @public_path = public_path
-        @sessions = {}
+        @sessions = SessionStore.new
         @file_cache = {}
       end
+
+      def stop =
+        @sessions.stop!
 
       def call(request, task: Async::Task.current)
         Console.logger.info(
@@ -185,13 +255,13 @@ module VDOM
           handle_favicon(request)
         in path: %r{\A\/.mayu\/runtime\/\w+\.js}
           handle_script(request)
-        in path: "/.vdom", method: "OPTIONS"
+        in path: "/.mayu", method: "OPTIONS"
           handle_options(request)
-        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "GET"
+        in path: %r{\/.mayu\/session\/(?<session_id>[[:alnum:]]+)}, method: "GET"
           handle_session_resume(request, $~[:session_id])
-        in path: %r{\/.vdom\/session\/(?<session_id>[[:alnum:]]+)}, method: "POST"
+        in path: %r{\/.mayu\/session\/(?<session_id>[[:alnum:]]+)}, method: "POST"
           handle_session_callback(request, $~[:session_id])
-        in path: %r{\A/\.vdom/(.+)\z}, method: "GET"
+        in path: %r{\A/\.mayu/assets/(.+)\z}, method: "GET"
           handle_vdom_asset(request)
         in method: "GET"
           handle_session_start(request)
@@ -250,28 +320,29 @@ module VDOM
       def handle_session_start(request)
         session = Session.new(descriptor: @descriptor)
 
-        @sessions.store(session.id, session)
+        @sessions.store(session)
 
         body = session.render
 
         Protocol::HTTP::Response[
           200,
-          { "content-type" => "text/html; charset-utf-8" },
+          {
+            "content-type" => "text/html; charset-utf-8",
+            "set-cookie": set_token_cookie_value(session),
+          },
           [body]
         ]
       end
 
       def handle_session_resume(request, session_id, task: Async::Task.current)
-        session = @sessions.fetch(session_id) do
-          return Protocol::HTTP::Response[404, {
-            content_type: "text/plain"
-          }, ["Session not found"]]
-        end
+        session = @sessions.authenticate(session_id, get_token_cookie_value(request))
+
+        return session_not_found_response unless session
 
         headers = {
           "content-type" => "x-mayu/json-stream",
-          "access-control-expose-headers" => SESSION_ID_HEADER_NAME,
           "content-encoding" => "deflate-raw",
+          "set-cookie": set_token_cookie_value(session),
           **origin_header(request),
         }
 
@@ -283,33 +354,38 @@ module VDOM
           ]) + "\n"
         )
 
-        headers[SESSION_ID_HEADER_NAME] = session.id
-
         task.async do
           session_task = session.run
 
           begin
             while msg = session.take
+              break if body.closed?
               body.write(JSON.generate(msg) + "\n")
             end
           ensure
             session_task.stop
+            Console.logger.info("Stopped session")
           end
         end
 
         Protocol::HTTP::Response[200, headers, body]
       end
 
-      def handle_session_callback(request, session_id)
-        session = @sessions.fetch(session_id) do
-          Console.logger.error(self, "Could not find session #{session_id.inspect}")
+      def session_not_found_response(request)
+        Protocol::HTTP::Response[
+          404,
+          {
+            **origin_header(request),
+            "content-type": "text/plain"
+          },
+          ["Session not found/invalid token"]
+        ]
+      end
 
-          return Protocol::HTTP::Response[
-            401,
-            origin_header(request),
-            ["Could not find session #{session_id.inspect}"]
-          ]
-        end
+      def handle_session_callback(request, session_id)
+        session = @sessions.authenticate(session_id, get_token_cookie_value(request))
+
+        return session_not_found_response unless session
 
         each_message(request) do |message|
           case message
@@ -322,7 +398,12 @@ module VDOM
           Console.logger.error(self, e)
         end
 
-        Protocol::HTTP::Response[204, origin_header(request), []]
+        headers = {
+          "set-cookie" => set_token_cookie_value(session),
+          **origin_header(request),
+        }
+
+        Protocol::HTTP::Response[204, headers, []]
       end
 
       def each_message(request)
@@ -363,6 +444,29 @@ module VDOM
         # @file_cache[path] ||= File.read(path)
         File.read(path)
       end
+
+      def get_token_cookie_value(request)
+        Array(request.headers["cookie"]).each do |str|
+          if match = str.match(/^mayu-token=(\w+)/)
+            return match[1].to_s.tap { SessionToken.validate!(_1) }
+          end
+        end
+
+        raise TokenCookieNotSetError
+      end
+
+      def set_token_cookie_value(session, ttl_seconds: 60)
+        expires = Time.now.utc + ttl_seconds
+
+        [
+          "mayu-token=#{session.token}",
+          "path=/.mayu/session/#{session.id}",
+          "expires=#{expires.httpdate}",
+          "secure",
+          "HttpOnly",
+          "SameSite=Strict"
+        ].join("; ")
+      end
     end
 
     def initialize(bind:, localhost:, descriptor:, public_path:)
@@ -384,12 +488,23 @@ module VDOM
     end
 
     def run(task: Async::Task.current)
+      interrupt = Async::IO::Trap.new(:INT)
+
       task.async do
+        interrupt.install!
         puts "\e[3m Starting server on #{@uri} \e[0m"
 
-        @server.run.each(&:wait)
+        barrier = Async::Barrier.new
+
+        listeners = @server.run
+
+        interrupt.wait
+        interrupt.default!
+        Console.logger.info("Got interrupt")
+        @app.stop
+        listeners.each(&:stop)
       ensure
-        puts "\n\r\e[3;31m Stopped server \e[0m"
+        Console.logger.info("Stopped server")
       end
     end
 
@@ -407,7 +522,7 @@ module VDOM
       end
 
       context.alpn_protocols = ["h2"]
-      context.session_id_context = "vdom"
+      context.session_id_context = "mayu"
 
       Async::IO::SSLEndpoint.new(endpoint, ssl_context: context)
     end
