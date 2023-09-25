@@ -19,6 +19,9 @@ module VDOM
   INCLUDE_DEBUG_ID = true
 
   class Runtime
+    class Unmount < Exception
+    end
+
     module Components
       class Head < Component::Base
         def render
@@ -157,13 +160,13 @@ module VDOM
       def mount
         @task = Async do
           @children.mount&.wait
-        ensure
+        rescue Unmount
           @children.unmount
         end
       end
 
       def unmount =
-        @task&.stop
+        Fiber.scheduler.raise(@task.fiber, Unmount)
 
       def update_children_order
         nil
@@ -203,10 +206,11 @@ module VDOM
           end
 
           barrier.wait
-        ensure
-          barrier.stop
+        rescue Unmount
           @children.unmount
           @instance.unmount
+        ensure
+          barrier.stop
         end
       end
 
@@ -716,7 +720,6 @@ module VDOM
 
         barrier.wait
       ensure
-        puts "unmounting"
         @document.unmount
         @task = nil
       end
@@ -742,7 +745,7 @@ module VDOM
       @callbacks.fetch(id).call(payload)
     end
 
-    def patch()
+    def patch
       if @patch_set
         yield @patch_set
         return
