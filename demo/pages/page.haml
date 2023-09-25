@@ -2,6 +2,7 @@
   Heading = import("/components/Heading")
   Counter = import("/components/Counter")
   Handlers = import("/components/Handlers")
+  Ordering = import("/components/Ordering")
 
   def mount
     puts "mounted"
@@ -12,17 +13,26 @@
 %div
   %Heading My webpage
   %h2(class="subtitle")= title
-  %Handlers
-  %Counter
-  %ul
-    = items.to_enum.with_index.map do |item, i|
-      %li[i](foo="bar"){class: i.zero? && :first}
-        %h3
-          %span> Static
-          %span= item
-        %ul
-          = item.each_char.with_index.map do |char, j|
-            %li[j]= char
+  %details
+    %summary Handlers
+    %Handlers
+  %details
+    %summary Counter
+    %Counter
+  %details
+    %summary Ordering
+    %Ordering
+  %details
+    %summary List
+    %ul
+      = items.to_enum.with_index.map do |item, i|
+        %li[i](foo="bar"){class: i.zero? && :first}
+          %h3
+            %span> Static
+            %span= item
+          %ul
+            = item.each_char.with_index.map do |char, j|
+              %li[j]= char
 :css
   h3 {
     background: #f0f;

@@ -1,0 +1,17 @@
+:ruby
+  Item = Data.define(:id, :value)
+
+  def initialize
+    @items = 10.times.map { |i| Item[i, SecureRandom.alphanumeric(10) ] }
+  end
+
+  def handle_reorder
+    @items = @items.shuffle
+  end
+
+%div
+  %button(onclick=handle_reorder) Reorder
+  %pre= @items.map(&:id).join(" ")
+  %ul
+    = @items.map do |item|
+      %li[item.id]= item.to_h.inspect
