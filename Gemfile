@@ -19,3 +19,7 @@ gem "syntax_tree-xml", "~> 0.1.0"
 gem "filewatcher", "~> 2.1"
 
 gem "mayu-css", "~> 0.0.3"
+
+gem "mime-types", "~> 3.5"
+
+gem "brotli", "~> 0.4.0"
