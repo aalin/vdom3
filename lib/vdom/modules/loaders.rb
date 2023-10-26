@@ -6,6 +6,7 @@
 require_relative "../transformers/haml"
 require_relative "../transformers/ruby"
 require_relative "../transformers/css"
+require_relative "mod"
 
 module VDOM
   module Modules

@@ -3,6 +3,12 @@
 # Copyright Andreas Alin <andreas.alin@gmail.com>
 # License: AGPL-3.0
 
+require_relative "assets"
+require_relative "dependency_graph"
+require_relative "dot_exporter"
+require_relative "registry"
+require_relative "resolver"
+
 module VDOM
   module Modules
     class System
@@ -28,6 +34,9 @@ module VDOM
       def self.register(path, mod) =
         current.register(path, mod)
 
+      def self.add_asset(asset) =
+        current.add_asset(asset)
+
       attr_reader :root
 
       def initialize(root)
@@ -37,6 +46,8 @@ module VDOM
           root: @root,
           extensions: ["", ".haml"]
         )
+
+        @assets = Assets.new
 
         @graph = DependencyGraph.new
       end
@@ -83,6 +94,9 @@ module VDOM
       def add_dependency(source, target) =
         @graph.add_dependency(source.to_s, target.to_s)
 
+      def add_asset(asset) =
+        @assets.add(asset)
+
       def created(path)
         parts = path.delete_prefix("/").split("/")
 
@@ -104,20 +118,16 @@ module VDOM
         end
       end
 
-      def deleted(path) =
-        updated(path)
+      alias deleted updated
 
-      def export_dot
+      def export_dot =
         DotExporter.new(@graph).to_source
-      end
 
-      def relative_from_root(absolute_path)
+      def relative_from_root(absolute_path) =
         File.join("/", Pathname.new(absolute_path).relative_path_from(@root))
-      end
 
-      def relative_to_absolute(relative_path)
+      def relative_to_absolute(relative_path) =
         File.join(@root, relative_path)
-      end
     end
   end
 end

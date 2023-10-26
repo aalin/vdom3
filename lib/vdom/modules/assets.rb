@@ -18,8 +18,10 @@ module VDOM
           else
             brotli(content)
           end
+
         def self.none(content) =
           new(nil, content)
+
         def self.brotli(content) =
           new(:br, Brotli.deflate(content))
       end
