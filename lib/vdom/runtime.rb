@@ -77,6 +77,10 @@ module VDOM
         @root.patch(&)
       end
 
+      def marshal_dump
+        [@id, @parent, @descriptor, @instance, @children]
+      end
+
       def traverse(&) =
         yield self
 

@@ -31,6 +31,8 @@ module VDOM
     InsertData = Data.define(:id, :offset, :data)
     DeleteData = Data.define(:id, :offset, :count)
 
+    Transfer = Data.define(:payload)
+
     Ping = Data.define(:timestamp)
 
     Event = Data.define(:event, :payload)

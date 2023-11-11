@@ -69,6 +69,14 @@ module VDOM
       def rerender! = nil
       # this method will be defined on each component.
       def emit!(event, **payload) = nil
+
+      def marshal_dump
+        [@state, @props]
+      end
+
+      def marshal_load(a)
+        @state, @props = a
+      end
     end
   end
 end

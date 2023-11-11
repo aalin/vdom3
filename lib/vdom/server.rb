@@ -12,6 +12,7 @@ require "async/http/protocol/response"
 require "async/http/server"
 require_relative "runtime"
 require_relative "compression"
+require_relative "message_cipher"
 
 module VDOM
   class Server
@@ -60,6 +61,11 @@ module VDOM
 
           barrier.async do
             @stop.wait
+            dumped = MessageCipher.new(key: "foo").dump(@runtime)
+            p dumped
+            # TODO: Switch to message pack, now we get:
+            #       JSON::GeneratorError: source sequence is illegal/malformed utf-8
+            # @output.enqueue([VDOM::Patches.serialize(Patches::Transfer[dumped])])
             barrier.stop
           end
 
@@ -499,7 +505,7 @@ module VDOM
         listeners = @server.run
 
         interrupt.wait
-        interrupt.default!
+        # interrupt.default!
         Console.logger.info("Got interrupt")
         @app.stop
         listeners.each(&:stop)
