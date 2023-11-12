@@ -10,8 +10,9 @@ require "async/queue"
 require "async/http/endpoint"
 require "async/http/protocol/response"
 require "async/http/server"
+require_relative "environment"
 require_relative "runtime"
-require_relative "compression"
+require_relative "event_stream"
 require_relative "message_cipher"
 
 module VDOM
@@ -23,7 +24,7 @@ module VDOM
       attr_reader :id
       attr_reader :token
 
-      def initialize(descriptor:)
+      def initialize(environment:, descriptor:)
         @id = SecureRandom.alphanumeric(32)
         @token = SessionToken.generate
 
@@ -31,7 +32,10 @@ module VDOM
         @output = Async::Queue.new
         @stop = Async::Condition.new
 
-        @runtime = VDOM::Runtime.new(session_id: @id)
+        @runtime = VDOM::Runtime.new(
+          environment: environment,
+          session_id: @id
+        )
         @runtime.render(descriptor)
       end
 
@@ -49,23 +53,14 @@ module VDOM
 
           barrier.async do
             loop do
-              patches = @runtime.dequeue
-
-              serialized_patches = patches.map do
-                VDOM::Patches.serialize(_1)
-              end
-
-              @output.enqueue(serialized_patches)
+              @output.enqueue([@runtime.dequeue].flatten)
             end
           end
 
           barrier.async do
             @stop.wait
             dumped = MessageCipher.new(key: "foo").dump(@runtime)
-            p dumped
-            # TODO: Switch to message pack, now we get:
-            #       JSON::GeneratorError: source sequence is illegal/malformed utf-8
-            # @output.enqueue([VDOM::Patches.serialize(Patches::Transfer[dumped])])
+            @output.enqueue(Patches::Transfer[dumped])
             barrier.stop
           end
 
@@ -130,16 +125,13 @@ module VDOM
       def ping_loop
         loop do
           sleep 5
-          @output.enqueue(
-            VDOM::Patches.serialize([VDOM::Patches::Ping[current_ping_time]])
-          )
+          @output.enqueue(VDOM::Patches::Ping[current_ping_time])
         end
       end
 
       def patch_loop(runtime)
         while patches = runtime.take
-          p patches
-          @output.enqueue(patches.map { VDOM::Patches.serialize(_1) })
+          @output.enqueue(patches)
           # Uncomment the following line to add some latency
           # sleep 0.0005
         end
@@ -246,6 +238,11 @@ module VDOM
         @public_path = public_path
         @sessions = SessionStore.new
         @file_cache = {}
+
+        @environment = Environment.setup(
+          root_path: File.expand_path("../../", __dir__),
+          client_path: File.join("client", "dist")
+        )
       end
 
       def stop =
@@ -259,7 +256,7 @@ module VDOM
         case request
         in path: "/favicon.ico"
           handle_favicon(request)
-        in path: %r{\A\/.mayu\/runtime\/\w+\.js}
+        in path: %r{\A\/.mayu\/runtime\/.+\.js(\.map)?}
           handle_script(request)
         in path: "/.mayu", method: "OPTIONS"
           handle_options(request)
@@ -277,11 +274,17 @@ module VDOM
       end
 
       def handle_favicon(_) =
-        send_file("favicon.png", "image/png")
+        send_public_file("favicon.png", "image/png")
 
       def handle_script(request) =
         send_file(
-          File.basename(request.path),
+          File.read(
+            File.join(
+              @environment.root_path,
+              @environment.client_path,
+              File.basename(request.path)
+            )
+          ),
           "application/javascript; charset=utf-8",
           origin_header(request)
         )
@@ -324,7 +327,10 @@ module VDOM
       end
 
       def handle_session_start(request)
-        session = Session.new(descriptor: @descriptor)
+        session = Session.new(
+          environment: @environment,
+          descriptor: @descriptor
+        )
 
         @sessions.store(session)
 
@@ -346,18 +352,16 @@ module VDOM
         return session_not_found_response unless session
 
         headers = {
-          "content-type" => "x-mayu/json-stream",
-          "content-encoding" => "deflate-raw",
+          "content-type" => EventStream::CONTENT_TYPE,
+          "content-encoding" => EventStream::CONTENT_ENCODING,
           "set-cookie": set_token_cookie_value(session),
           **origin_header(request),
         }
 
-        body = Compression::Writer.new
+        body = EventStream::Writer.new
 
         body.write(
-          JSON.generate([
-            Patches.serialize(Patches::Initialize[session.dom_id_tree.serialize])
-          ]) + "\n"
+          Patches::Initialize[session.dom_id_tree.serialize]
         )
 
         task.async do
@@ -366,7 +370,7 @@ module VDOM
           begin
             while msg = session.take
               break if body.closed?
-              body.write(JSON.generate(msg) + "\n")
+              body.write(msg)
             end
           ensure
             session_task.stop
@@ -428,10 +432,12 @@ module VDOM
       def origin_header(request) =
         { "access-control-allow-origin" => request.headers["origin"] }
 
-      def send_file(filename, content_type, headers = {})
-        content = read_public_file(filename)
+      def send_public_file(filename, content_type, headers = {})
+        send_file(read_public_file(filename), content_type, headers)
+      end
 
-        Protocol::HTTP::Response[
+      def send_file(content, content_type, headers = {})
+          Protocol::HTTP::Response[
           200,
           {
             "content-type" => content_type,

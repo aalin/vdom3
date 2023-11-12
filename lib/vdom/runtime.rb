@@ -27,14 +27,15 @@ module VDOM
         def render
           @props => {
             session_id:,
-            descriptor:
+            descriptor:,
+            main_js:,
           }
 
           H[:__head,
             *descriptor.children,
             H[:script,
               type: "module",
-              src: "/.mayu/runtime/session.js##{session_id}",
+              src: [main_js, "#", session_id].join,
               async: true,
             ],
             **descriptor.props
@@ -120,7 +121,8 @@ module VDOM
             Descriptors::H[
               Components::Head,
               descriptor:,
-              session_id: @root.session_id
+              session_id: @root.session_id,
+              main_js: "/.mayu/runtime/#{@root.environment.main_js}"
             ], parent: self)
         in Descriptors::Element[type: :__head]
           VElement.new(descriptor.with(type: :head), parent: self)
@@ -673,8 +675,10 @@ module VDOM
     end
 
     attr_reader :session_id
+    attr_reader :environment
 
-    def initialize(session_id:)
+    def initialize(environment:, session_id:)
+      @environment = environment
       @session_id = session_id
       @patches = Async::Queue.new
       @callbacks = {}

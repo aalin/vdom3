@@ -8,15 +8,16 @@ export default class Runtime {
   #nodeSet = new NodeSet();
 
   apply(patches) {
-    patches.forEach((patch) => {
+    for (const patch of patches) {
       const [name, ...args] = patch;
+      console.log("applyPatch", name, args)
       console.debug(name, args)
       const patchFn = Patches[name]
       if (!patchFn) {
         throw new Error(`Not implemented: ${name}`)
       }
       Patches[name].apply(this.#nodeSet, args);
-    })
+    }
   }
 }
 

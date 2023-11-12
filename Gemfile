@@ -23,3 +23,7 @@ gem "mayu-css", "~> 0.0.3"
 gem "mime-types", "~> 3.5"
 
 gem "brotli", "~> 0.4.0"
+
+gem "msgpack", "~> 1.7"
+
+gem "nanoid", "~> 2.0"

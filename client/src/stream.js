@@ -1,7 +1,8 @@
 // Copyright Andreas Alin <andreas.alin@gmail.com>
 // License: AGPL-3.0
 
-const STREAM_MIME_TYPE = "x-mayu/json-stream";
+
+const STREAM_MIME_TYPE = "application/vnd.mayu.event-stream"
 const STREAM_CONTENT_ENCODING = "deflate-raw";
 
 export async function initInputStream(endpoint) {
@@ -11,8 +12,6 @@ export async function initInputStream(endpoint) {
 
   return  res.body
     .pipeThrough(new DecompressionStream(contentEncoding))
-    .pipeThrough(new TextDecoderStream())
-    .pipeThrough(new JSONDecoderStream())
 }
 
 export async function connect(endpoint) {
