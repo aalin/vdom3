@@ -1,17 +1,14 @@
 // Copyright Andreas Alin <andreas.alin@gmail.com>
 // License: AGPL-3.0
 
-
-const STREAM_MIME_TYPE = "application/vnd.mayu.event-stream"
-const STREAM_CONTENT_ENCODING = "deflate-raw";
+import { STREAM_MIME_TYPE, STREAM_CONTENT_ENCODING } from "./constants";
 
 export async function initInputStream(endpoint) {
-  const res = await connect(endpoint)
+  const res = await connect(endpoint);
 
   const contentEncoding = res.headers.get("content-encoding");
 
-  return  res.body
-    .pipeThrough(new DecompressionStream(contentEncoding))
+  return res.body.pipeThrough(new DecompressionStream(contentEncoding));
 }
 
 export async function connect(endpoint) {
@@ -48,34 +45,6 @@ export async function connect(endpoint) {
   console.info("🟢 Connected to", endpoint);
 
   return res;
-}
-
-export class JSONDecoderStream extends TransformStream {
-  constructor() {
-    // This transformer is based on this code:
-    // https://rob-blackbourn.medium.com/beyond-eventsource-streaming-fetch-with-readablestream-5765c7de21a1#6c5e
-    super({
-      start(controller) {
-        controller.buf = "";
-        controller.pos = 0;
-      },
-
-      transform(chunk, controller) {
-        controller.buf += chunk;
-
-        while (controller.pos < controller.buf.length) {
-          if (controller.buf[controller.pos] === "\n") {
-            const line = controller.buf.substring(0, controller.pos);
-            controller.enqueue(JSON.parse(line));
-            controller.buf = controller.buf.substring(controller.pos + 1);
-            controller.pos = 0;
-          } else {
-            controller.pos++;
-          }
-        }
-      },
-    });
-  }
 }
 
 export class RAFQueue {
@@ -127,7 +96,7 @@ const supportsRequestStreams = (() => {
 
 export function initCallbackStream(endpoint) {
   if (!supportsRequestStreams) {
-    console.warn("Request streams not supported, using fallback.")
+    console.warn("Request streams not supported, using fallback.");
     return initCallbackStreamFetchFallback(endpoint);
   }
 

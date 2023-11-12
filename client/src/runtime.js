@@ -101,4 +101,7 @@ const Patches = {
   ReplaceChildren(id, childIds) {
     this.getNode(id).replaceChildren(...this.getNodes(childIds));
   },
+  Transfer(state) {
+    console.log(state)
+  },
 };

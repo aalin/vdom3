@@ -233,7 +233,13 @@ module VDOM
         "immutable",
       ].join(", ").freeze
 
+      module States
+        ACCEPTING = :accepting
+        STOPPING = :stopping
+      end
+
       def initialize(descriptor:, public_path:)
+        @state = States::ACCEPTING
         @descriptor = descriptor
         @public_path = public_path
         @sessions = SessionStore.new
@@ -245,8 +251,13 @@ module VDOM
         )
       end
 
-      def stop =
+      def stopping? =
+        @state == States::STOPPING
+
+      def stop
+        @state = States::STOPPING
         @sessions.stop!
+      end
 
       def call(request, task: Async::Task.current)
         Console.logger.info(
@@ -511,10 +522,9 @@ module VDOM
         listeners = @server.run
 
         interrupt.wait
-        # interrupt.default!
         Console.logger.info("Got interrupt")
         @app.stop
-        listeners.each(&:stop)
+        interrupt.default!
       ensure
         Console.logger.info("Stopped server")
       end

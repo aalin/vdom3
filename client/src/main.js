@@ -1,43 +1,69 @@
-import Runtime from './runtime.js'
-import { initInputStream, initCallbackStream, JSONEncoderStream, RAFQueue } from './stream.js'
-import serializeEvent from "./serializeEvent.js"
-import {decodeMultiStream} from '@msgpack/msgpack'
+import Runtime from "./runtime.js";
+
+import {
+  initInputStream,
+  initCallbackStream,
+  JSONEncoderStream,
+} from "./stream.js";
+
+import serializeEvent from "./serializeEvent.js";
+import { decodeMultiStream, ExtensionCodec } from "@msgpack/msgpack";
+
+import { SESSION_MIME_TYPE } from "./constants";
 
 class Mayu {
-  #writer = null
+  #writer = null;
 
   constructor(writer) {
-    this.#writer = writer
+    this.#writer = writer;
   }
 
   callback(event, id) {
-    this.#writer.write(["callback", id, serializeEvent(event)])
+    this.#writer.write(["callback", id, serializeEvent(event)]);
   }
 }
 
-async function runPatchStream(runtime) {
+async function startPatchStream(runtime, endpoint) {
+  const extensionCodec = createExtensionCodec();
+
   while (true) {
-    const input = await initInputStream(endpoint)
+    const input = await initInputStream(endpoint, { extensionCodec });
 
     for await (const patch of decodeMultiStream(input)) {
-      runtime.apply(patch)
+      runtime.apply(patch);
     }
   }
 }
 
-const SESSION_PATH = "/.mayu/session"
+function createExtensionCodec() {
+  const extensionCodec = new ExtensionCodec();
 
-const sessionId = import.meta.url.split("#").at(-1)
+  extensionCodec.register({
+    type: 0x01,
+    encode() {
+      throw new Error("Not implemented");
+    },
+    decode(buffer) {
+      return new Blob([buffer], { type: SESSION_MIME_TYPE });
+    },
+  });
 
-const endpoint = `${SESSION_PATH}/${sessionId}`
-const output = initCallbackStream(endpoint)
+  return extensionCodec;
+}
 
-const runtime = new Runtime()
+const SESSION_PATH = "/.mayu/session";
 
-const callbackStream = new TransformStream()
-window.Mayu = new Mayu(callbackStream.writable.getWriter())
+const sessionId = import.meta.url.split("#").at(-1);
 
-runPatchStream(runtime)
+const endpoint = `${SESSION_PATH}/${sessionId}`;
+const runtime = new Runtime();
+
+const callbackStream = new TransformStream();
+window.Mayu = new Mayu(callbackStream.writable.getWriter());
+
+startPatchStream(runtime, endpoint);
+
+const output = initCallbackStream(endpoint);
 
 callbackStream.readable
   .pipeThrough(new JSONEncoderStream())
