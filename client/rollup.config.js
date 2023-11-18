@@ -45,7 +45,7 @@ function minifyHTML(minifyOptions = {}) {
 }
 
 export default {
-  input: ["src/main.js"],
+  input: ["src/main.ts"],
   output: {
     dir: "dist/",
     format: "esm",
