@@ -9,28 +9,34 @@ import {
 import serializeEvent from "./serializeEvent.js";
 import { decodeMultiStream, ExtensionCodec } from "@msgpack/msgpack";
 
-import { SESSION_MIME_TYPE } from "./constants";
+import { SESSION_MIME_TYPE, SESSION_PATH } from "./constants";
+
+declare global {
+  interface Window {
+    Mayu: Mayu;
+  }
+}
 
 class Mayu {
-  #writer = null;
+  #writer: WritableStreamDefaultWriter<any>;
 
-  constructor(writer) {
+  constructor(writer: WritableStreamDefaultWriter<any>) {
     this.#writer = writer;
   }
 
-  callback(event, id) {
+  callback(event: Event, id: string) {
     this.#writer.write(["callback", id, serializeEvent(event)]);
   }
 }
 
-async function startPatchStream(runtime, endpoint) {
+async function startPatchStream(runtime: Runtime, endpoint: string) {
   const extensionCodec = createExtensionCodec();
 
   while (true) {
-    const input = await initInputStream(endpoint, { extensionCodec });
+    const input = await initInputStream(endpoint);
 
-    for await (const patch of decodeMultiStream(input)) {
-      runtime.apply(patch);
+    for await (const patch of decodeMultiStream(input, { extensionCodec })) {
+      runtime.apply(patch as any);
     }
   }
 }
@@ -50,8 +56,6 @@ function createExtensionCodec() {
 
   return extensionCodec;
 }
-
-const SESSION_PATH = "/.mayu/session";
 
 const sessionId = import.meta.url.split("#").at(-1);
 

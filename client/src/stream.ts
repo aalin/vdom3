@@ -2,29 +2,29 @@
 // License: AGPL-3.0
 
 import { STREAM_MIME_TYPE, STREAM_CONTENT_ENCODING } from "./constants";
+import supportsRequestStreams from './supportsRequestStreams'
 
-export async function initInputStream(endpoint) {
+export async function initInputStream(endpoint: string): Promise<ReadableStream<any>> {
   const res = await connect(endpoint);
+
+  if (!res.body) throw new Error('No body')
 
   const contentEncoding = res.headers.get("content-encoding");
 
-  return res.body.pipeThrough(new DecompressionStream(contentEncoding));
+  if (!contentEncoding) return res.body
+
+  return res.body.pipeThrough(new DecompressionStream(contentEncoding as any));
 }
 
-export async function connect(endpoint) {
+export async function connect(endpoint: string): Promise<Response> {
   console.info("🟡 Connecting to", endpoint);
-
-  const acceptEncoding =
-    typeof DecompressionStream !== "undefined"
-      ? STREAM_CONTENT_ENCODING
-      : "identity";
 
   const res = await fetch(endpoint, {
     method: "GET",
     credentials: "include",
     headers: new Headers({
       accept: STREAM_MIME_TYPE,
-      "accept-encoding": acceptEncoding,
+      "accept-encoding": STREAM_CONTENT_ENCODING,
     }),
   });
 
@@ -47,14 +47,18 @@ export async function connect(endpoint) {
   return res;
 }
 
-export class RAFQueue {
-  constructor(onFlush) {
+export class RAFQueue<T> {
+  onFlush: (queue: T[]) => void
+  queue: T[]
+  raf: number | null
+
+  constructor(onFlush: (queue: T[]) => void) {
     this.onFlush = onFlush;
     this.queue = [];
     this.raf = null;
   }
 
-  enqueue(messages) {
+  enqueue(messages: T[]) {
     messages.forEach((msg) => this.queue.push(msg));
     this.raf ||= requestAnimationFrame(() => this.flush());
   }
@@ -78,23 +82,7 @@ export class JSONEncoderStream extends TransformStream {
   }
 }
 
-const supportsRequestStreams = (() => {
-  // https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
-  let duplexAccessed = false;
-
-  const hasContentType = new Request("", {
-    body: new ReadableStream(),
-    method: "POST",
-    get duplex() {
-      duplexAccessed = true;
-      return "half";
-    },
-  }).headers.has("Content-Type");
-
-  return duplexAccessed && !hasContentType;
-})();
-
-export function initCallbackStream(endpoint) {
+export function initCallbackStream(endpoint: string) {
   if (!supportsRequestStreams) {
     console.warn("Request streams not supported, using fallback.");
     return initCallbackStreamFetchFallback(endpoint);
@@ -112,14 +100,14 @@ export function initCallbackStream(endpoint) {
     duplex: "half",
     mode: "cors",
     body: readable,
-  });
+  } as any);
 
   return writable;
 }
 
-function initCallbackStreamFetchFallback(endpoint) {
+function initCallbackStreamFetchFallback(endpoint: string) {
   return new WritableStream({
-    write(body, controller) {
+    write(body) {
       fetch(endpoint, {
         method: "POST",
         headers: new Headers({
