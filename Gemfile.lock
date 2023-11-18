@@ -23,6 +23,7 @@ GEM
     console (1.23.2)
       fiber-annotation
       fiber-local
+    ffi (1.16.3)
     fiber-annotation (0.2.0)
     fiber-local (1.0.0)
     filewatcher (2.1.0)
@@ -55,6 +56,8 @@ GEM
       coderay (~> 1.1)
       method_source (~> 1.0)
     rake (13.1.0)
+    rbnacl (7.1.1)
+      ffi
     syntax_tree (6.2.0)
       prettier_print (>= 1.2.0)
     syntax_tree-haml (4.0.3)
@@ -88,6 +91,7 @@ DEPENDENCIES
   nanoid (~> 2.0)
   pry (~> 0.14.2)
   rake (~> 13.0)
+  rbnacl (~> 7.1)
   syntax_tree (~> 6.1)
   syntax_tree-haml (~> 4.0)
   syntax_tree-xml (~> 0.1.0)

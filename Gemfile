@@ -27,3 +27,5 @@ gem "brotli", "~> 0.4.0"
 gem "msgpack", "~> 1.7"
 
 gem "nanoid", "~> 2.0"
+
+gem "rbnacl", "~> 7.1"

@@ -9,7 +9,7 @@ require_relative "message_cipher"
 
 class VDOM::MessageCipher::Test < Minitest::Test
   def test_dump_and_load
-    message_cipher = VDOM::MessageCipher.new(key: "test")
+    message_cipher = VDOM::MessageCipher.new(key: generate_key)
 
     dumped = message_cipher.dump("hello")
     loaded = message_cipher.load(dumped)
@@ -18,7 +18,7 @@ class VDOM::MessageCipher::Test < Minitest::Test
   end
 
   def test_dump_and_load_object
-    message_cipher = VDOM::MessageCipher.new(key: "test")
+    message_cipher = VDOM::MessageCipher.new(key: generate_key)
 
     object = {
       foo: "hello",
@@ -35,7 +35,7 @@ class VDOM::MessageCipher::Test < Minitest::Test
 
   def test_issued_in_the_future
     now = Time.now
-    message_cipher = VDOM::MessageCipher.new(key: "test")
+    message_cipher = VDOM::MessageCipher.new(key: generate_key)
 
     dumped = message_cipher.dump("hello")
 
@@ -48,7 +48,7 @@ class VDOM::MessageCipher::Test < Minitest::Test
 
   def test_expiration
     now = Time.now
-    message_cipher = VDOM::MessageCipher.new(key: "test")
+    message_cipher = VDOM::MessageCipher.new(key: generate_key)
     dumped = message_cipher.dump("hello")
 
     Time.stub(:now, Time.at(Time.now + VDOM::MessageCipher::DEFAULT_TTL_SECONDS)) do
@@ -59,8 +59,8 @@ class VDOM::MessageCipher::Test < Minitest::Test
   end
 
   def test_invalid_key
-    cipher1 = VDOM::MessageCipher.new(key: "foo")
-    cipher2 = VDOM::MessageCipher.new(key: "bar")
+    cipher1 = VDOM::MessageCipher.new(key: generate_key)
+    cipher2 = VDOM::MessageCipher.new(key: generate_key)
 
     dumped = cipher1.dump("hello")
 
@@ -68,4 +68,9 @@ class VDOM::MessageCipher::Test < Minitest::Test
       cipher2.load(dumped)
     end
   end
+
+  private
+
+  def generate_key =
+    RbNaCl::Random.random_bytes(RbNaCl::SecretBox.key_bytes)
 end
