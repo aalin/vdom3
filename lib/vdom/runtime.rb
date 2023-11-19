@@ -454,16 +454,6 @@ module VDOM
       end
     end
 
-    class VStyles < VNode
-      def initialize(...)
-        super
-      end
-
-      def unmount
-        patch { |patches| patches << Patches::RemoveAttribute[] }
-      end
-    end
-
     class VElement < VNode
       VOID_ELEMENTS = %i[
         area
