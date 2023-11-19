@@ -17,7 +17,7 @@ require_relative "component"
 require_relative "descriptors"
 
 module VDOM
-  INCLUDE_DEBUG_ID = true
+  INCLUDE_DEBUG_ID = false
 
   class Runtime
     class Unmount < Exception

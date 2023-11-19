@@ -10,6 +10,8 @@ require_relative "modules"
 
 module VDOM
   module Component
+    Metadata = Data.define(:name, :path)
+
     class Base
       H = VDOM::Descriptors::H
 

@@ -72,7 +72,7 @@ module VDOM
         @assets.get(path)
 
       def get_assets_for_module(path) =
-        @graph.get_obj(path).assets
+        @graph.get_obj(path)&.assets || []
 
       def import(path, source_file = "/")
         resolved_path = @resolver.resolve(path, File.dirname(source_file))

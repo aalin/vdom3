@@ -24,7 +24,7 @@ class VDOM::Modules::Assets::Test < Minitest::Test
       Brotli.inflate(asset.encoded_content.content)
     )
     assert_equal(
-      "foo.txt?yqy-cFH3rN6EyrcsWbBdog-NE1tHRkLWWO1sdhQVMNk",
+      "/path/to/foo.txt?yqy-cFH3rN6EyrcsWbBdog-NE1tHRkLWWO1sdhQVMNk",
       asset.filename
     )
     assert_equal(
@@ -48,7 +48,7 @@ class VDOM::Modules::Assets::Test < Minitest::Test
       asset.encoded_content.content
     )
     assert_equal(
-      "foo.png?7XACtDnprIRfIjV9giusFERzD722AW0-yUMil7nsn3M",
+      "/path/to/foo.png?7XACtDnprIRfIjV9giusFERzD722AW0-yUMil7nsn3M",
       asset.filename
     )
     assert_equal(

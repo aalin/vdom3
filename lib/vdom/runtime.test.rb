@@ -1,6 +1,10 @@
 require "minitest/autorun"
 
+require "nokogiri"
+
 require_relative "runtime"
+require_relative "environment"
+require_relative "modules"
 
 class VDOM::Runtime::Test < Minitest::Test
   H = VDOM::Descriptors::H
@@ -17,7 +21,7 @@ class VDOM::Runtime::Test < Minitest::Test
     COMPONENT_META = VDOM::Component::Metadata["ComponentWithSlots", __FILE__]
 
     def render
-      H[:div,
+      H[:body,
         H[:heading,
           H[:slot, name: "heading"],
         ]
@@ -26,35 +30,29 @@ class VDOM::Runtime::Test < Minitest::Test
   end
 
   def test_render
-    Sync do
-      runtime = VDOM::Runtime.new
-
+    with_runtime do |runtime|
       runtime.render(
-        H[:div,
+        H[:body,
           H[:h1, "Title"]
         ]
       )
 
-      assert_equal runtime.to_html, <<~HTML.chomp
-        <!doctype html>
-        <div><h1>Title</h1></div>
+      assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
+        <body><h1>Title</h1></body>
       HTML
     end
   end
 
   def test_attributes
-    Sync do
-      runtime = VDOM::Runtime.new
-
+    with_runtime do |runtime|
       runtime.render(
         H[Layout,
           H[:a, "Go to other page", href: "/other-page", class: "my-class"],
         ]
       )
 
-      assert_equal runtime.to_html, <<~HTML.chomp
-        <!doctype html>
-        <html><body><a href="/other-page" class="my-class">Go to other page</a></body></html>
+      assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
+        <body><a href="/other-page" class="my-class">Go to other page</a></body>
       HTML
 
       runtime.render(
@@ -67,17 +65,14 @@ class VDOM::Runtime::Test < Minitest::Test
         p _1
       end
 
-      assert_equal runtime.to_html, <<~HTML.chomp
-        <!doctype html>
-        <html><body><a href="/other-page2" class="my-class">Go to other page</a></body></html>
+      assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
+        <body><a href="/other-page2" class="my-class">Go to other page</a></body>
       HTML
     end
   end
 
   def test_slots
-    Sync do
-      runtime = VDOM::Runtime.new
-
+    with_runtime do |runtime|
       runtime.render(
         H[ComponentWithSlots,
           H[:h1, "Title", slot: "heading"],
@@ -85,9 +80,8 @@ class VDOM::Runtime::Test < Minitest::Test
         ]
       )
 
-      assert_equal runtime.to_html, <<~HTML.chomp
-        <!doctype html>
-        <div><heading><h1>Title</h1></heading></div>
+      assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
+        <body><heading><h1>Title</h1></heading></body>
       HTML
 
       runtime.render(
@@ -96,9 +90,8 @@ class VDOM::Runtime::Test < Minitest::Test
         ]
       )
 
-      assert_equal runtime.to_html, <<~HTML.chomp
-        <!doctype html>
-        <div><heading><h1>Updated title</h1></heading></div>
+      assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
+        <body><heading><h1>Updated title</h1></heading></body>
       HTML
     end
   end
@@ -106,5 +99,20 @@ class VDOM::Runtime::Test < Minitest::Test
   def read_patches(runtime)
     patches = runtime.instance_variable_get(:@patches)
     yield patches.dequeue until patches.empty?
+  end
+
+  def with_runtime
+    Sync do
+      VDOM::Modules::System.run(__dir__) do
+        yield VDOM::Runtime.new(
+          environment: VDOM::Environment.setup(File.join(__dir__, "..", "..")),
+          session_id: VDOM::Server::Session::Token.generate
+        )
+      end
+    end
+  end
+
+  def get_body_html(html)
+    Nokogiri::HTML(html).at("body").to_s
   end
 end

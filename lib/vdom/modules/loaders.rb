@@ -12,8 +12,6 @@ module VDOM
   module Modules
     module Loaders
       module ComponentLoader
-        Metadata = Data.define(:name, :path)
-
         def self.load(source, path)
           # puts "\e[3m SOURCE \e[0m"
           # puts "\e[33m#{source}\e[0m"
@@ -30,7 +28,7 @@ module VDOM
           name = File.basename(path, ".*").freeze
           component.define_singleton_method(:title) { name }
           component.define_singleton_method(:display_name) { name }
-          component.const_set(:COMPONENT_META, Metadata[name, path])
+          component.const_set(:COMPONENT_META, Component::Metadata[name, path])
 
           if stylesheet = component.const_get(:Styles)
             if stylesheet.is_a?(VDOM::StyleSheet)
