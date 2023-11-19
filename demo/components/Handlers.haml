@@ -13,7 +13,7 @@
     (@count = @count - 1 if @count > 0)
 
   def handle_input(event) =
-    @slug = slugify(event[:value].to_s)
+    @slug = slugify(event.dig(:currentTarget, :value).to_s)
 
   private
 
@@ -34,7 +34,7 @@
   %legend Callbacks
   %div
     Title:
-    %input(oninput=handle_input)</
+    %input(oninput=handle_input)<
   %p
     Slug:
     %output<= @slug
