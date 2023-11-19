@@ -26,72 +26,65 @@ module VDOM
     module Components
       class HTML < Component::Base
         def render
-          H[:html,
-            H[:slot],
-            @props[:descriptor],
-            lang: @props[:lang]
-          ]
+          H[:html, H[:slot], @props[:descriptor], lang: @props[:lang]]
         end
       end
 
       class Head < Component::Base
         def render
-          @props => {
-            session_id:,
-            main_js:,
-          }
+          @props => { session_id:, main_js: }
 
-          H[:__head,
+          H[
+            :__head,
             H[:meta, charset: "utf-8"],
             H[:slot, key: "user_tags"],
             script_tag,
-            *stylesheet_links,
+            *stylesheet_links
           ]
         end
 
         def stylesheet_links
-          @props[:assets].map do |asset|
-            if asset.content_type == "text/css"
-              href = File.join("/.mayu/assets", asset.filename)
-              puts "\e[3;35m#{href}\e[0m"
+          @props[:assets]
+            .map do |asset|
+              if asset.content_type == "text/css"
+                href = File.join("/.mayu/assets", asset.filename)
+                puts "\e[3;35m#{href}\e[0m"
 
-              H[:link,
-                key: href,
-                rel: "stylesheet",
-                href:,
-              ]
+                H[:link, key: href, rel: "stylesheet", href:]
+              end
             end
-          end.compact
+            .compact
         end
 
         def script_tag
-          H[:script,
+          H[
+            :script,
             type: "module",
             src: @props[:main_js],
             async: true,
-            key: "main_js",
+            key: "main_js"
           ]
         end
       end
     end
 
-    IdNode = Data.define(:id, :name, :children) do
-      def self.[](id, name, children = nil)
-        new(id, name, children)
-      end
+    IdNode =
+      Data.define(:id, :name, :children) do
+        def self.[](id, name, children = nil)
+          new(id, name, children)
+        end
 
-      def serialize
-        if c = children
-          { id:, name:, children: c.flatten.compact.map(&:serialize) }
-        else
-          { id:, name:, }
+        def serialize
+          if c = children
+            { id:, name:, children: c.flatten.compact.map(&:serialize) }
+          else
+            { id:, name: }
+          end
         end
       end
-    end
 
     class VNode
-      def self.generate_id =
-        SecureRandom.alphanumeric(10)
+      def self.generate_id = SecureRandom.alphanumeric(10)
 
       attr_reader :id
       attr_reader :descriptor
@@ -109,8 +102,7 @@ module VDOM
         @root.patch(&)
       end
 
-      def marshal_dump =
-        [@id, @parent, @descriptor, @instance, @children]
+      def marshal_dump = [@id, @parent, @descriptor, @instance, @children]
 
       def closest(type) =
         if type === self
@@ -119,36 +111,26 @@ module VDOM
           @parent.closest(type)
         end
 
-      def traverse(&) =
-        yield self
+      def traverse(&) = yield self
 
       def inspect =
         "#<#{self.class.name}##{@id} descriptor=#{@descriptor.inspect}>"
 
-      def dom_ids =
-        [@id]
-      def dom_id_tree =
-        IdNode[@id, dom_node_name]
+      def dom_ids = [@id]
+      def dom_id_tree = IdNode[@id, dom_node_name]
 
-      def mount =
-        nil
-      def unmount =
-        nil
+      def mount = nil
+      def unmount = nil
 
-      def add_asset(asset) =
-        @parent.add_asset(asset)
+      def add_asset(asset) = @parent.add_asset(asset)
 
-      def task =
-        Async::Task.current
+      def task = Async::Task.current
 
-      def update_children_order =
-        @parent.update_children_order
+      def update_children_order = @parent.update_children_order
 
-      def parent_element_id =
-        @parent.parent_element_id
+      def parent_element_id = @parent.parent_element_id
 
-      def get_slotted(name) =
-        @parent.get_slotted(name)
+      def get_slotted(name) = @parent.get_slotted(name)
 
       def init_child_vnode(descriptor)
         case descriptor
@@ -217,27 +199,24 @@ module VDOM
         end
       end
 
-      def dom_id_tree =
-        @html.dom_id_tree.first
+      def dom_id_tree = @html.dom_id_tree.first
 
       def update(descriptor)
         @descriptor = descriptor
 
-        patch do
-          @html.update(init_html)
-        end
+        patch { @html.update(init_html) }
       end
 
       def mount
-        @task = Async do
-          @html.mount&.wait
-        rescue Unmount
-          @html.unmount
-        end
+        @task =
+          Async do
+            @html.mount&.wait
+          rescue Unmount
+            @html.unmount
+          end
       end
 
-      def unmount =
-        Fiber.scheduler.raise(@task.fiber, Unmount)
+      def unmount = Fiber.scheduler.raise(@task.fiber, Unmount)
 
       def update_children_order
         nil
@@ -246,23 +225,25 @@ module VDOM
       private
 
       def init_html
-        H[Components::HTML,
-          H[Components::Head,
+        H[
+          Components::HTML,
+          H[
+            Components::Head,
             *@head.values.flatten,
             key: "head",
             session_id: @parent.session_id,
-            main_js: format(
-              "%s#%s",
-              File.join("/.mayu/runtime", @parent.environment.main_js),
-              @parent.session_id
-            ),
-            assets: @assets.to_a,
+            main_js:
+              format(
+                "%s#%s",
+                File.join("/.mayu/runtime", @parent.environment.main_js),
+                @parent.session_id
+              ),
+            assets: @assets.to_a
           ],
           descriptor: @descriptor,
           key: "html"
         ]
       end
-
     end
 
     class VComponent < VNode
@@ -282,34 +263,31 @@ module VDOM
       end
 
       def mount
-        @task = Async do |task|
-          barrier = Async::Barrier.new
-          queue = Async::Queue.new
+        @task =
+          Async do |task|
+            barrier = Async::Barrier.new
+            queue = Async::Queue.new
 
-          @instance.define_singleton_method(:rerender!) do
-            queue.enqueue(:update!)
+            @instance.define_singleton_method(:rerender!) do
+              queue.enqueue(:update!)
+            end
+
+            barrier.async { @instance.mount }
+
+            barrier.async { @children.mount&.wait }
+
+            loop do
+              queue.wait
+              @children.update(@instance.render)
+            end
+
+            barrier.wait
+          rescue Unmount
+            @children.unmount
+            @instance.unmount
+          ensure
+            barrier.stop
           end
-
-          barrier.async do
-            @instance.mount
-          end
-
-          barrier.async do
-            @children.mount&.wait
-          end
-
-          loop do
-            queue.wait
-            @children.update(@instance.render)
-          end
-
-          barrier.wait
-        rescue Unmount
-          @children.unmount
-          @instance.unmount
-        ensure
-          barrier.stop
-        end
       end
 
       def unmount
@@ -330,7 +308,8 @@ module VDOM
         old_descriptor = @descriptor
         @descriptor = new_descriptor
 
-        if old_descriptor.props != @descriptor.props || old_descriptor.children != @descriptor.children
+        if old_descriptor.props != @descriptor.props ||
+             old_descriptor.children != @descriptor.children
           @instance.instance_variable_set(:@props, @descriptor.props)
           @children.update(@instance.render)
         end
@@ -357,7 +336,8 @@ module VDOM
     class VSlot < VNode
       def initialize(...)
         super
-        @children = VChildren.new(get_slotted(@descriptor.props[:name]), parent: self)
+        @children =
+          VChildren.new(get_slotted(@descriptor.props[:name]), parent: self)
       end
 
       def dom_id_tree = @children.dom_id_tree
@@ -368,14 +348,11 @@ module VDOM
         @children.update(get_slotted(@descriptor.props[:name]))
       end
 
-      def mount =
-        @children.mount
+      def mount = @children.mount
 
-      def unmount =
-        @children.unmount
+      def unmount = @children.unmount
 
-      def to_s =
-        @children.to_s
+      def to_s = @children.to_s
     end
 
     class VChildren < VNode
@@ -392,17 +369,14 @@ module VDOM
       def to_s = @children.join
 
       def mount
-        @task = Async do
-          barrier = Async::Barrier.new
+        @task =
+          Async do
+            barrier = Async::Barrier.new
 
-          @children.each do |child|
-            barrier.async do
-              child.mount&.wait
-            end
+            @children.each { |child| barrier.async { child.mount&.wait } }
+
+            barrier.wait
           end
-
-          barrier.wait
-        end
       end
 
       def unmount
@@ -417,24 +391,25 @@ module VDOM
       def update(descriptors)
         descriptors = normalize_descriptors(descriptors)
 
-        if descriptors.empty? && @children.empty?
-          return
-        end
+        return if descriptors.empty? && @children.empty?
 
         patch do
           grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
 
           # binding.pry unless grouped.empty?
 
-          new_children = descriptors.map do |descriptor|
-            if found = grouped[Descriptors.get_hash(descriptor)]&.shift
-              found.update(descriptor)
-              found
-            else
-              vnode = init_child_vnode(descriptor)
-              vnode
-            end
-          end.compact
+          new_children =
+            descriptors
+              .map do |descriptor|
+                if found = grouped[Descriptors.get_hash(descriptor)]&.shift
+                  found.update(descriptor)
+                  found
+                else
+                  vnode = init_child_vnode(descriptor)
+                  vnode
+                end
+              end
+              .compact
 
           @children = new_children
 
@@ -455,14 +430,16 @@ module VDOM
       end
 
       def insert_comments_between_strings(descriptors)
-        [nil, *descriptors].each_cons(2).map do |prev, descriptor|
-          case [prev, descriptor]
-          in String, String
-            [STRING_SEPARATOR, descriptor]
-          else
-            descriptor
+        [nil, *descriptors].each_cons(2)
+          .map do |prev, descriptor|
+            case [prev, descriptor]
+            in [String, String]
+              [STRING_SEPARATOR, descriptor]
+            else
+              descriptor
+            end
           end
-        end.flatten
+          .flatten
       end
     end
 
@@ -485,37 +462,47 @@ module VDOM
       end
 
       def unmount
-        patch do |patches|
-          patches << Patches::RemoveAttribute[]
-        end
+        patch { |patches| patches << Patches::RemoveAttribute[] }
       end
     end
 
     class VElement < VNode
       VOID_ELEMENTS = %i[
-        area base br col embed hr img input link meta param source track wbr
+        area
+        base
+        br
+        col
+        embed
+        hr
+        img
+        input
+        link
+        meta
+        param
+        source
+        track
+        wbr
       ]
 
-      Listener = Data.define(:id, :callback) do
-        def self.[](callback) =
-          new(SecureRandom.alphanumeric(32), callback)
+      Listener =
+        Data.define(:id, :callback) do
+          def self.[](callback) = new(SecureRandom.alphanumeric(32), callback)
 
-        def call(payload)
-          method = callback.component.method(callback.method_name)
+          def call(payload)
+            method = callback.component.method(callback.method_name)
 
-          case method.parameters
-          in []
-            method.call
-          in [[:req, Symbol]]
-            method.call(payload)
-          in [[:keyrest, Symbol]]
-            method.call(**payload)
+            case method.parameters
+            in []
+              method.call
+            in [[:req, Symbol]]
+              method.call(payload)
+            in [[:keyrest, Symbol]]
+              method.call(**payload)
+            end
           end
-        end
 
-        def callback_js =
-          "Mayu.callback(event,'#{id}')"
-      end
+          def callback_js = "Mayu.callback(event,'#{id}')"
+        end
 
       def initialize(...)
         super
@@ -530,13 +517,10 @@ module VDOM
         end
       end
 
-      def dom_id_tree =
-        IdNode[@id, dom_node_name, @children.dom_id_tree]
-      def dom_node_name =
-        @descriptor.type.to_s.upcase
+      def dom_id_tree = IdNode[@id, dom_node_name, @children.dom_id_tree]
+      def dom_node_name = @descriptor.type.to_s.upcase
 
-      def mount =
-        @children.mount
+      def mount = @children.mount
 
       def unmount
         patch do |patches|
@@ -568,33 +552,32 @@ module VDOM
       end
 
       def to_s
-        if INCLUDE_DEBUG_ID
-          identifier = ' data-mayu-id="%s"' % @id
-        end
+        identifier = ' data-mayu-id="%s"' % @id if INCLUDE_DEBUG_ID
 
         name = @descriptor.type.to_s.downcase.tr("_", "-")
 
-        attributes = @attributes.map do |prop, value|
-          next unless value
+        attributes =
+          @attributes
+            .map do |prop, value|
+              next unless value
 
-          if value == true
-            next " #{prop}"
-          end
+              next " #{prop}" if value == true
 
-          if prop == :style && value.is_a?(Hash)
-            value = InlineStyle.stringify(value)
-          end
+              if prop == :style && value.is_a?(Hash)
+                value = InlineStyle.stringify(value)
+              end
 
-          format(
-            ' %s="%s"',
-            CGI.escape_html(prop.to_s.tr("_", "-")),
-            if value.is_a?(Listener)
-              value.callback_js
-            else
-              CGI.escape_html(value.to_s)
+              format(
+                ' %s="%s"',
+                CGI.escape_html(prop.to_s.tr("_", "-")),
+                if value.is_a?(Listener)
+                  value.callback_js
+                else
+                  CGI.escape_html(value.to_s)
+                end
+              )
             end
-          )
-        end.join
+            .join
 
         if VOID_ELEMENTS.include?(@descriptor.type)
           "<#{name}#{identifier}#{attributes}>"
@@ -621,18 +604,25 @@ module VDOM
 
       def update_attributes(props)
         patch do |patches|
-          return @attributes.keys.union(props.keys).map do |prop|
-            old = @attributes[prop]
-            new = props[prop] || nil
+          return(
+            @attributes
+              .keys
+              .union(props.keys)
+              .map do |prop|
+                old = @attributes[prop]
+                new = props[prop] || nil
 
-            if prop == :style
-              update_style(patches, prop, old, new)
-            elsif prop.start_with?("on")
-              update_callback(patches, prop, old, new)
-            else
-              update_attribute(patches, prop, old, new)
-            end
-          end.compact.to_h
+                if prop == :style
+                  update_style(patches, prop, old, new)
+                elsif prop.start_with?("on")
+                  update_callback(patches, prop, old, new)
+                else
+                  update_attribute(patches, prop, old, new)
+                end
+              end
+              .compact
+              .to_h
+          )
         end
       end
 
@@ -642,9 +632,7 @@ module VDOM
           return
         end
 
-        if old.to_s == new.to_s
-          [prop, old]
-        end
+        [prop, old] if old.to_s == new.to_s
 
         if prop == :class
           patches << Patches::SetClassName[@id, new.to_s]
@@ -661,18 +649,14 @@ module VDOM
           return
         end
 
-        InlineStyle.diff(id, old || {}, new) do |patch|
-          patches << patch
-        end
+        InlineStyle.diff(id, old || {}, new) { |patch| patches << patch }
 
         [prop, new]
       end
 
       def update_callback(patches, prop, old, new)
         if old
-          if old.callback.same?(new)
-            return [prop, old]
-          end
+          return prop, old if old.callback.same?(new)
 
           @root.remove_listener(old)
 
@@ -749,9 +733,7 @@ module VDOM
       end
 
       def unmount
-        patch do |patches|
-          patches << Patches::RemoveNode[@id]
-        end
+        patch { |patches| patches << Patches::RemoveNode[@id] }
       end
 
       def to_s
@@ -762,8 +744,7 @@ module VDOM
         end
       end
 
-      def dom_node_name =
-        "#text"
+      def dom_node_name = "#text"
     end
 
     class VComment < VNode
@@ -778,27 +759,25 @@ module VDOM
         unless @descriptor.to_s == descriptor.to_s
           @descriptor = descriptor
           patch do |patches|
-            patches << Patches::SetTextContent[@id, escape_comment(descriptor.to_s)]
+            patches << Patches::SetTextContent[
+              @id,
+              escape_comment(descriptor.to_s)
+            ]
           end
         end
       end
 
       def unmount
-        patch do |patches|
-          patches << Patches::RemoveNode[@id]
-        end
+        patch { |patches| patches << Patches::RemoveNode[@id] }
       end
 
-      def to_s =
-        "<!--#{escape_comment(@descriptor.content)}-->"
+      def to_s = "<!--#{escape_comment(@descriptor.content)}-->"
 
-      def dom_node_name =
-        "#comment"
+      def dom_node_name = "#comment"
 
       private
 
-      def escape_comment(str) =
-        str.to_s.gsub(/--/, '&#45;&#45;')
+      def escape_comment(str) = str.to_s.gsub(/--/, "&#45;&#45;")
     end
 
     class PatchSet
@@ -808,11 +787,9 @@ module VDOM
         @patches = []
       end
 
-      def each(&) =
-        @patches.each(&)
+      def each(&) = @patches.each(&)
 
-      def push(patch) =
-        @patches.push(patch)
+      def push(patch) = @patches.push(patch)
 
       alias << push
     end
@@ -833,54 +810,44 @@ module VDOM
       @document.update(descriptor)
     end
 
-    def root =
-      self
+    def root = self
 
-    def to_html =
-      @document.to_s
+    def to_html = @document.to_s
 
-    def dom_id_tree =
-      @document.dom_id_tree
+    def dom_id_tree = @document.dom_id_tree
 
     def clear_queue! =
-      until @patches.empty?
-        puts "\e[33m#{@patches.dequeue.inspect}\e[0m"
-      end
+      puts "\e[33m#{@patches.dequeue.inspect}\e[0m" until @patches.empty?
 
     def commit(patch_set)
-      if @task
-        @patches.enqueue(patch_set.to_a)
-      end
+      @patches.enqueue(patch_set.to_a) if @task
     end
 
     def run(&)
       raise "already running" if @task
 
-      @task = Async do
-        puts "mounting document"
-        barrier = Async::Barrier.new
+      @task =
+        Async do
+          puts "mounting document"
+          barrier = Async::Barrier.new
 
-        barrier.async do
-          @document.mount&.wait
+          barrier.async { @document.mount&.wait }
+
+          barrier.async do
+            puts "yielding"
+            yield
+          end
+
+          barrier.wait
+        ensure
+          @document.unmount
+          @task = nil
         end
-
-        barrier.async do
-          puts "yielding"
-          yield
-        end
-
-        barrier.wait
-      ensure
-        @document.unmount
-        @task = nil
-      end
     end
 
-    def dequeue =
-      @patches.dequeue
+    def dequeue = @patches.dequeue
 
-    def traverse(&) =
-      @document.traverse(&)
+    def traverse(&) = @document.traverse(&)
 
     def add_listener(listener)
       puts "\e[32mRegistering listener #{listener.id}\e[0m"
