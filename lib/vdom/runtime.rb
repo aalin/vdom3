@@ -140,8 +140,6 @@ module VDOM
           VSlot.new(descriptor, parent: self)
         in Descriptors::Element[type: :head]
           VHead.new(descriptor, parent: self)
-        in Descriptors::Element[type: :__head]
-          VElement.new(descriptor.with(type: :head), parent: self)
         in Descriptors::Element
           VElement.new(descriptor, parent: self)
         in Descriptors::Comment
@@ -510,7 +508,7 @@ module VDOM
         @attributes = {}
 
         patch do |patches|
-          patches << Patches::CreateElement[@id, @descriptor.type]
+          patches << Patches::CreateElement[@id, tag_name]
           @attributes = update_attributes(@descriptor.props)
           @children = VChildren.new([], parent: self)
           @children.update(@descriptor.children)
@@ -518,7 +516,7 @@ module VDOM
       end
 
       def dom_id_tree = IdNode[@id, dom_node_name, @children.dom_id_tree]
-      def dom_node_name = @descriptor.type.to_s.upcase
+      def dom_node_name = tag_name.upcase
 
       def mount = @children.mount
 
@@ -535,10 +533,6 @@ module VDOM
       end
 
       def update(new_descriptor)
-        if new_descriptor.type === :__head
-          new_descriptor = new_descriptor.with(type: :head)
-        end
-
         patch do |patches|
           @descriptor = new_descriptor
           @attributes = update_attributes(new_descriptor.props)
@@ -551,10 +545,11 @@ module VDOM
         @children.traverse(&)
       end
 
+      def tag_name =
+        @descriptor.type.to_s.downcase.delete_prefix("__").tr("_", "-")
+
       def to_s
         identifier = ' data-mayu-id="%s"' % @id if INCLUDE_DEBUG_ID
-
-        name = @descriptor.type.to_s.downcase.tr("_", "-")
 
         attributes =
           @attributes
@@ -578,6 +573,8 @@ module VDOM
               )
             end
             .join
+
+        name = tag_name
 
         if VOID_ELEMENTS.include?(@descriptor.type)
           "<#{name}#{identifier}#{attributes}>"
@@ -681,6 +678,7 @@ module VDOM
         # TODO:
         # add_to_document should be called here,
         # but somehow we get into an infinite loop if we do that.
+        # add_to_document
       end
 
       def dom_id_tree = nil
