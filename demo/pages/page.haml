@@ -4,12 +4,23 @@
   Handlers = import("/components/Handlers")
   Ordering = import("/components/Ordering")
 
+  def initialize
+    @count = 0
+  end
+
   def mount
     puts "mounted"
+    loop do
+      @count += 1
+      sleep 1
+    end
   end
 :ruby
   title = props[:title]
   items = ["foo", "bar", "baz"]
+%head
+  %title My webpage #{@count}
+  %meta(name="hello" content="foobar #{@count / 2}")
 %div
   %Heading My webpage
   %h2(class="subtitle")= title

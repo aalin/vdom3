@@ -43,7 +43,7 @@ module VDOM
 
           H[:__head,
             H[:meta, charset: "utf-8"],
-            H[:slot],
+            H[:slot, key: "user_tags"],
             script_tag,
             *stylesheet_links,
           ]
@@ -82,7 +82,7 @@ module VDOM
 
       def serialize
         if c = children
-          { id:, name:, children: c.flatten.map(&:serialize) }
+          { id:, name:, children: c.flatten.compact.map(&:serialize) }
         else
           { id:, name:, }
         end
@@ -157,7 +157,7 @@ module VDOM
         in Descriptors::Element[type: :slot]
           VSlot.new(descriptor, parent: self)
         in Descriptors::Element[type: :head]
-          VElement.new(descriptor, parent: self)
+          VHead.new(descriptor, parent: self)
         in Descriptors::Element[type: :__head]
           VElement.new(descriptor.with(type: :head), parent: self)
         in Descriptors::Element
@@ -184,12 +184,25 @@ module VDOM
       def initialize(...)
         super
 
+        @head = {}
         @assets = Set.new
         @html = VComponent.new(init_html, parent: self)
       end
 
       def to_s
+        puts "\e[3;32mRENDERING DOCUMENT\e[0m"
         "<!DOCTYPE html>\n#{@html.to_s}\n"
+      end
+
+      def add_head(vnode, children)
+        @head[vnode] = children
+        @html.update(init_html)
+      end
+
+      def remove_head(vnode)
+        puts "\e[3;31mRemoving from head #{vnode.inspect}"
+        @head.delete(vnode)
+        @html.update(init_html)
       end
 
       def add_asset(asset)
@@ -235,6 +248,7 @@ module VDOM
       def init_html
         H[Components::HTML,
           H[Components::Head,
+            *@head.values.flatten,
             key: "head",
             session_id: @parent.session_id,
             main_js: format(
@@ -401,10 +415,18 @@ module VDOM
       end
 
       def update(descriptors)
+        descriptors = normalize_descriptors(descriptors)
+
+        if descriptors.empty? && @children.empty?
+          return
+        end
+
         patch do
           grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
 
-          new_children = normalize_descriptors(descriptors).map do |descriptor|
+          # binding.pry unless grouped.empty?
+
+          new_children = descriptors.map do |descriptor|
             if found = grouped[Descriptors.get_hash(descriptor)]&.shift
               found.update(descriptor)
               found
@@ -520,9 +542,9 @@ module VDOM
         patch do |patches|
           @children.unmount
           @attributes
-              .values
-              .select { _1.is_a?(Listener) }
-              .each { @root.remove_listener(_1) }
+            .values
+            .select { _1.is_a?(Listener) }
+            .each { @root.remove_listener(_1) }
           @attributes = {}
           patches << Patches::RemoveNode[@id]
         end
@@ -669,8 +691,47 @@ module VDOM
       end
     end
 
+    class VHead < VNode
+      def initialize(...)
+        super
+        # TODO:
+        # add_to_document should be called here,
+        # but somehow we get into an infinite loop if we do that.
+      end
+
+      def dom_id_tree = nil
+
+      def update(new_descriptor)
+        @descriptor = new_descriptor
+        add_to_document
+      end
+
+      def to_s = ""
+
+      def mount
+        add_to_document
+        nil
+      end
+
+      def unmount
+        remove_from_document
+        nil
+      end
+
+      private
+
+      def add_to_document
+        closest(VDocument).add_head(self, @descriptor.children)
+      end
+
+      def remove_from_document
+        closest(VDocument).remove_head(self)
+      end
+    end
+
     class VText < VNode
       ZERO_WIDTH_SPACE = "&ZeroWidthSpace;"
+
       def initialize(...)
         super
         patch do |patches|
