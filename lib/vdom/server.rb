@@ -13,16 +13,15 @@ require "async/http/server"
 require_relative "environment"
 require_relative "runtime"
 require_relative "event_stream"
-require_relative "message_cipher"
 require_relative "server/session"
 require_relative "server/session_store"
 require_relative "server/app"
 
 module VDOM
   class Server
-    def initialize(bind:, localhost:, descriptor:, public_path:, root_path:)
+    def initialize(bind:, localhost:, descriptor:, public_path:, root_path:, secret_key:)
       @uri = URI.parse(bind)
-      @app = App.new(descriptor:, public_path:, root_path:)
+      @app = App.new(descriptor:, public_path:, root_path:, secret_key:)
 
       endpoint = Async::HTTP::Endpoint.new(@uri)
 

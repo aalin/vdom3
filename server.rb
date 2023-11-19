@@ -16,7 +16,8 @@ Sync do
       localhost: true,
       descriptor: H[layout, H[page]],
       public_path: File.join(__dir__, "public"),
-      root_path: __dir__
+      root_path: __dir__,
+      secret_key: "TODO: Replace this with a secret key"
     )
 
     server.run

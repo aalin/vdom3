@@ -10,7 +10,7 @@ require "securerandom"
 require "brotli"
 
 module VDOM
-  class MessageCipher
+  class EncryptedMarshal
     DEFAULT_TTL_SECONDS = 10
 
     Message = Data.define(:iss, :exp, :payload)
@@ -26,7 +26,7 @@ module VDOM
     class DecryptError < Error
     end
 
-    def initialize(key:, ttl: DEFAULT_TTL_SECONDS)
+    def initialize(key, ttl: DEFAULT_TTL_SECONDS)
       validate_ttl!(ttl)
       @default_ttl_seconds = ttl
       @box = RbNaCl::SimpleBox.from_secret_key(RbNaCl::Hash.sha256(key))

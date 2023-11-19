@@ -40,14 +40,17 @@ module VDOM
         STOPPING = :stopping
       end
 
-      def initialize(descriptor:, public_path:, root_path:)
+      def initialize(descriptor:, public_path:, root_path:, secret_key:)
         @state = States::ACCEPTING
         @descriptor = descriptor
         @public_path = public_path
         @sessions = SessionStore.new
         @file_cache = {}
 
-        @environment = Environment.setup(root_path)
+        @environment = Environment.setup(
+          root_path:,
+          secret_key:
+        )
       end
 
       def stopping? =

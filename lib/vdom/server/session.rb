@@ -65,7 +65,7 @@ module VDOM
 
           barrier.async do
             @stop.wait
-            dumped = MessageCipher.new(key: "foo").dump(@runtime)
+            dumped = @runtime.environment.encrypted_marshal.dump(@runtime)
             @output.enqueue(Runtime::Patches::Transfer[dumped])
             barrier.stop
           end

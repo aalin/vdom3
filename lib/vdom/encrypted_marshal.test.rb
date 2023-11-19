@@ -5,11 +5,11 @@
 
 require "minitest/autorun"
 
-require_relative "message_cipher"
+require_relative "encrypted_marshal"
 
-class VDOM::MessageCipher::Test < Minitest::Test
+class VDOM::EncryptedMarshal::Test < Minitest::Test
   def test_dump_and_load
-    message_cipher = VDOM::MessageCipher.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
 
     dumped = message_cipher.dump("hello")
     loaded = message_cipher.load(dumped)
@@ -18,7 +18,7 @@ class VDOM::MessageCipher::Test < Minitest::Test
   end
 
   def test_dump_and_load_object
-    message_cipher = VDOM::MessageCipher.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
 
     object = {
       foo: "hello",
@@ -35,12 +35,12 @@ class VDOM::MessageCipher::Test < Minitest::Test
 
   def test_issued_in_the_future
     now = Time.now
-    message_cipher = VDOM::MessageCipher.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
 
     dumped = message_cipher.dump("hello")
 
     Time.stub(:now, Time.at(Time.now - 1)) do
-      assert_raises(VDOM::MessageCipher::IssuedInTheFutureError) do
+      assert_raises(VDOM::EncryptedMarshal::IssuedInTheFutureError) do
         message_cipher.load(dumped)
       end
     end
@@ -48,23 +48,23 @@ class VDOM::MessageCipher::Test < Minitest::Test
 
   def test_expiration
     now = Time.now
-    message_cipher = VDOM::MessageCipher.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
     dumped = message_cipher.dump("hello")
 
-    Time.stub(:now, Time.at(Time.now + VDOM::MessageCipher::DEFAULT_TTL_SECONDS)) do
-      assert_raises(VDOM::MessageCipher::ExpiredError) do
+    Time.stub(:now, Time.at(Time.now + VDOM::EncryptedMarshal::DEFAULT_TTL_SECONDS)) do
+      assert_raises(VDOM::EncryptedMarshal::ExpiredError) do
         message_cipher.load(dumped)
       end
     end
   end
 
   def test_invalid_key
-    cipher1 = VDOM::MessageCipher.new(key: generate_key)
-    cipher2 = VDOM::MessageCipher.new(key: generate_key)
+    cipher1 = VDOM::EncryptedMarshal.new(key: generate_key)
+    cipher2 = VDOM::EncryptedMarshal.new(key: generate_key)
 
     dumped = cipher1.dump("hello")
 
-    assert_raises(VDOM::MessageCipher::DecryptError) do
+    assert_raises(VDOM::EncryptedMarshal::DecryptError) do
       cipher2.load(dumped)
     end
   end
