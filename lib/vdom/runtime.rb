@@ -29,6 +29,7 @@ module VDOM
             session_id:,
             descriptor:,
             main_js:,
+            assets:,
           }
 
           H[:__head,
@@ -38,9 +39,26 @@ module VDOM
               src: [main_js, "#", session_id].join,
               async: true,
             ],
+            *stylesheet_links(assets),
             **descriptor.props
           ]
         end
+
+        private
+
+        def stylesheet_links(assets) =
+          assets.map do |asset|
+            if asset.content_type == "text/css"
+              href = File.join("/.mayu/assets", asset.filename)
+              puts "\e[3;35m#{href}\e[0m"
+
+              H[:link,
+                key: href,
+                rel: "stylesheet",
+                href:,
+              ]
+            end
+          end.compact
       end
     end
 
@@ -78,9 +96,15 @@ module VDOM
         @root.patch(&)
       end
 
-      def marshal_dump
+      def marshal_dump =
         [@id, @parent, @descriptor, @instance, @children]
-      end
+
+      def closest(type) =
+        if type === self
+          self
+        else
+          @parent.closest(type)
+        end
 
       def traverse(&) =
         yield self
@@ -97,6 +121,9 @@ module VDOM
         nil
       def unmount =
         nil
+
+      def add_asset(asset) =
+        @parent.add_asset(asset)
 
       def task =
         Async::Task.current
@@ -122,7 +149,8 @@ module VDOM
               Components::Head,
               descriptor:,
               session_id: @root.session_id,
-              main_js: "/.mayu/runtime/#{@root.environment.main_js}"
+              main_js: "/.mayu/runtime/#{@root.environment.main_js}",
+              assets: closest(VDocument).assets.to_a
             ], parent: self)
         in Descriptors::Element[type: :__head]
           VElement.new(descriptor.with(type: :head), parent: self)
@@ -145,13 +173,27 @@ module VDOM
     end
 
     class VDocument < VNode
+      attr_reader :assets
+
       def initialize(...)
         super
         @children = VChildren.new([@descriptor], parent: self)
+        @assets = Set.new
       end
 
       def to_s
         "<!doctype html>\n#{@children.to_s}"
+      end
+
+      def add_asset(asset)
+        return unless @assets.add?(asset)
+
+        if asset.content_type == "text/css"
+          patch do |patches|
+            puts "Adding stylesheet #{asset.filename}"
+            patches << Patches::AddStyleSheet[asset.filename]
+          end
+        end
       end
 
       def dom_id_tree =
@@ -182,6 +224,12 @@ module VDOM
     class VComponent < VNode
       def initialize(...)
         super(...)
+
+        if @descriptor.type.const_defined?(:COMPONENT_META)
+          @descriptor.type.const_get(:COMPONENT_META) => { path: }
+
+          Modules::System.get_assets_for_module(path).each { add_asset(_1) }
+        end
 
         @instance = @descriptor.type.allocate
         @instance.instance_variable_set(:@props, @descriptor.props)

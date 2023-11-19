@@ -51,10 +51,16 @@ module VDOM
       end
 
       def initialize =
-        @assets = ObjectSpace::WeakMap.new
+        @assets = {}
 
-      def get(filename) =
-        @assets[filename]
+      def get(filename)
+        if asset = @assets[filename]
+          asset
+        else
+          puts "\e[3;33mCould not find asset #{filename}\e[0m"
+          pp @assets
+        end
+      end
 
       def add(asset) =
         @assets[asset.filename] = asset

@@ -37,6 +37,12 @@ module VDOM
       def self.add_asset(asset) =
         current.add_asset(asset)
 
+      def self.get_asset(path) =
+        current.get_asset(path)
+
+      def self.get_assets_for_module(path) =
+        current.get_assets_for_module(path)
+
       attr_reader :root
 
       def initialize(root)
@@ -61,6 +67,12 @@ module VDOM
         Registry.delete(path)
         @graph.delete_node(path)
       end
+
+      def get_asset(path) =
+        @assets.get(path)
+
+      def get_assets_for_module(path) =
+        @graph.get_obj(path).assets
 
       def import(path, source_file = "/")
         resolved_path = @resolver.resolve(path, File.dirname(source_file))

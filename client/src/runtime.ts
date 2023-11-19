@@ -140,4 +140,13 @@ const Patches = {
   Transfer(this: NodeSet, state: Blob) {
     console.log(state)
   },
+  AddStyleSheet(this: NodeSet, path: string) {
+    console.error(path)
+    console.error(path)
+    console.error(path)
+    console.error(path)
+    console.error(path)
+    console.error(path)
+    console.error(path)
+  }
 } as const;

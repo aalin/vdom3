@@ -45,14 +45,6 @@ module VDOM
 
           mod.assets.each { System.add_asset(_1) }
 
-          # if stylesheet = component.const_get(Transformers::Haml::STYLES_CONST_NAME)
-          #   Assets.instance.store(stylesheet.asset)
-          # end
-          #
-          # if partials = component.const_get(Transformers::Haml::PARTIALS_CONST_NAME)
-          #   partials.each { Assets.instance.store(_1.asset) }
-          # end
-
           mod
         end
       end

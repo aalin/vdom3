@@ -31,6 +31,8 @@ module VDOM
     InsertData = Data.define(:id, :offset, :data)
     DeleteData = Data.define(:id, :offset, :count)
 
+    AddStyleSheet = Data.define(:filename)
+
     Transfer = Data.define(:payload)
 
     Ping = Data.define(:timestamp)

@@ -166,7 +166,7 @@ module VDOM
 
       def build_code_heredoc_inner
         parts = []
-        remains = @parse_result.code
+        remains = @parse_result.code.gsub("\\", "\\\\\\\\")
 
         @parse_result.dependencies.map do |dep|
           dep => { placeholder: }

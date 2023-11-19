@@ -28,8 +28,8 @@
   %output.foobar{
     style: { display: 'block', font_size: 2.em },
   }= @count
-  %Button(onclick=handle_increment) Increment
-  %Button(onclick=handle_decrement) Decrement
+  %Button.decrement(onclick=handle_increment) Increment
+  %Button.increment(onclick=handle_decrement) Decrement
   / this is a comment
 %fieldset
   %legend Callbacks
@@ -43,3 +43,15 @@
       this is a
       %p lol
       multiline comment
+:css
+  .increment {
+    background: #9f9;
+  }
+  .decrement {
+    background: #99f;
+  }
+  Button {
+    padding: 1em;
+    border: 1px solid #0006;
+    border-radius: 3px;
+  }

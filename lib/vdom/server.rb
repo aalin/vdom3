@@ -39,8 +39,11 @@ module VDOM
         @runtime.render(descriptor)
       end
 
-      def render =
+      def render
+        puts "\e[3;33mRENDERING\e[0m"
         @runtime.to_html
+      end
+
       def dom_id_tree =
         @runtime.dom_id_tree
 
@@ -311,20 +314,24 @@ module VDOM
       end
 
       def handle_vdom_asset(request)
-        asset =
-          Assets.instance.fetch(File.basename(request.path)) do
-            return handle_404(request)
-          end
+        path = File.join("/", Pathname.new(request.path).relative_path_from('/.mayu/assets'))
+
+        asset = Modules::System.get_asset(path)
+
+        unless asset
+          raise "COULD NOT FIND ASSET #{path.inspect}"
+          return handle_404(request)
+        end
 
         Protocol::HTTP::Response[
           200,
           {
-            "content-type" => asset.content.type,
-            "content-encoding" => asset.content.encoding,
+            "content-type" => asset.content_type,
+            "content-encoding" => asset.encoded_content.encoding,
             "cache-control" => ASSET_CACHE_CONTROL,
             **origin_header(request),
           },
-          [asset.content.to_s]
+          [asset.encoded_content.content.to_s]
         ]
       end
 
