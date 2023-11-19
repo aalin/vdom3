@@ -22,6 +22,58 @@ module VDOM
     class Unmount < Exception
     end
 
+    module Components
+      class HTML < Component::Base
+        def render
+          H[:html,
+            H[:slot],
+            @props[:descriptor],
+            lang: @props[:lang]
+          ]
+        end
+      end
+
+      class Head < Component::Base
+        def render
+          @props => {
+            session_id:,
+            main_js:,
+          }
+
+          H[:__head,
+            H[:meta, charset: "utf-8"],
+            H[:slot],
+            script_tag,
+            *stylesheet_links,
+          ]
+        end
+
+        def stylesheet_links
+          @props[:assets].map do |asset|
+            if asset.content_type == "text/css"
+              href = File.join("/.mayu/assets", asset.filename)
+              puts "\e[3;35m#{href}\e[0m"
+
+              H[:link,
+                key: href,
+                rel: "stylesheet",
+                href:,
+              ]
+            end
+          end.compact
+        end
+
+        def script_tag
+          H[:script,
+            type: "module",
+            src: @props[:main_js],
+            async: true,
+            key: "main_js",
+          ]
+        end
+      end
+    end
+
     IdNode = Data.define(:id, :name, :children) do
       def self.[](id, name, children = nil)
         new(id, name, children)
@@ -105,6 +157,8 @@ module VDOM
           VSlot.new(descriptor, parent: self)
         in Descriptors::Element[type: :head]
           VElement.new(descriptor, parent: self)
+        in Descriptors::Element[type: :__head]
+          VElement.new(descriptor.with(type: :head), parent: self)
         in Descriptors::Element
           VElement.new(descriptor, parent: self)
         in Descriptors::Comment
@@ -130,7 +184,7 @@ module VDOM
         super
 
         @assets = Set.new
-        @html = VElement.new(init_html, parent: self)
+        @html = VComponent.new(init_html, parent: self)
       end
 
       def to_s
@@ -144,14 +198,13 @@ module VDOM
           patch do |patches|
             puts "Adding stylesheet #{asset.filename}"
             patches << Patches::AddStyleSheet[asset.filename]
+            @html.update(init_html)
           end
         end
-
-        @html.update(init_html)
       end
 
       def dom_id_tree =
-        @html.dom_id_tree
+        @html.dom_id_tree.first
 
       def update(descriptor)
         @descriptor = descriptor
@@ -179,43 +232,24 @@ module VDOM
       private
 
       def init_html
-        H[:html,
-          H[:head,
-            script_tag,
-            *stylesheet_links,
+        puts "\e[3;35m#{__method__}: assets: #{@assets.to_a.inspect}\e[0m"
+
+        H[Components::HTML,
+          H[Components::Head,
             key: "head",
+            session_id: @parent.session_id,
+            main_js: format(
+              "%s#%s",
+              File.join("/.mayu/runtime", @parent.environment.main_js),
+              @parent.session_id
+            ),
+            assets: @assets.to_a,
           ],
-          *@descriptor,
+          descriptor: @descriptor,
           key: "html"
         ]
       end
 
-      def stylesheet_links
-        @assets.map do |asset|
-          if asset.content_type == "text/css"
-            href = File.join("/.mayu/assets", asset.filename)
-            puts "\e[3;35m#{href}\e[0m"
-
-            H[:link,
-              key: href,
-              rel: "stylesheet",
-              href:,
-            ]
-          end
-        end.compact
-      end
-
-      def script_tag
-        H[:script,
-          type: "module",
-          src: format(
-            "%s#%s",
-            File.join("/.mayu/runtime", @parent.environment.main_js),
-            @parent.session_id
-          ),
-          async: true,
-        ]
-      end
     end
 
     class VComponent < VNode
@@ -280,10 +314,10 @@ module VDOM
       def to_s = @children.to_s
 
       def update(new_descriptor)
-        old_props = @descriptor.props
+        old_descriptor = @descriptor
         @descriptor = new_descriptor
 
-        unless old_props == @descriptor.props
+        if old_descriptor.props != @descriptor.props || old_descriptor.children != @descriptor.children
           @instance.instance_variable_set(:@props, @descriptor.props)
           @children.update(@instance.render)
         end
@@ -496,6 +530,10 @@ module VDOM
       end
 
       def update(new_descriptor)
+        if new_descriptor.type === :__head
+          new_descriptor = new_descriptor.with(type: :head)
+        end
+
         patch do |patches|
           @descriptor = new_descriptor
           @attributes = update_attributes(new_descriptor.props)
@@ -579,7 +617,7 @@ module VDOM
 
       def update_attribute(patches, prop, old, new)
         unless new
-          patches << Patches::RemoveAttribute[@id, value]
+          patches << Patches::RemoveAttribute[@id, new.to_s]
           return
         end
 
