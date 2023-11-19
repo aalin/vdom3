@@ -32,6 +32,19 @@ module VDOM
           component.define_singleton_method(:display_name) { name }
           component.const_set(:COMPONENT_META, Metadata[name, path])
 
+          if stylesheet = component.const_get(:Styles)
+            if stylesheet.is_a?(VDOM::StyleSheet)
+              mod.assets.push(
+                Assets::Asset.build(
+                  path + ".css",
+                  stylesheet.content
+                )
+              )
+            end
+          end
+
+          mod.assets.each { System.add_asset(_1) }
+
           # if stylesheet = component.const_get(Transformers::Haml::STYLES_CONST_NAME)
           #   Assets.instance.store(stylesheet.asset)
           # end

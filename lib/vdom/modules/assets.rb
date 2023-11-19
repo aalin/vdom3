@@ -11,21 +11,6 @@ require "base64"
 module VDOM
   module Modules
     class Assets
-      EncodedContent = Data.define(:encoding, :content) do
-        def self.for_mime_type_and_content(mime_type, content) =
-          if mime_type.binary?
-            none(content)
-          else
-            brotli(content)
-          end
-
-        def self.none(content) =
-          new(nil, content)
-
-        def self.brotli(content) =
-          new(:br, Brotli.deflate(content))
-      end
-
       Asset = Data.define(:content_type, :content_hash, :encoded_content, :filename) do
         def self.build(filename, content)
           MIME::Types.type_for(filename) => [mime_type]
@@ -36,7 +21,7 @@ module VDOM
 
           filename = format(
             "%s.%s?%s",
-            File.basename(filename, ".*"),
+            File.join(File.dirname(filename), File.basename(filename, ".*")),
             mime_type.preferred_extension,
             Base64.urlsafe_encode64(content_hash, padding: false)
           )
@@ -48,6 +33,21 @@ module VDOM
             filename:,
           )
         end
+      end
+
+      EncodedContent = Data.define(:encoding, :content) do
+        def self.for_mime_type_and_content(mime_type, content) =
+          if mime_type.media_type == "text"
+            brotli(content)
+          else
+            none(content)
+          end
+
+        def self.none(content) =
+          new(nil, content)
+
+        def self.brotli(content) =
+          new(:br, Brotli.deflate(content))
       end
 
       def initialize =

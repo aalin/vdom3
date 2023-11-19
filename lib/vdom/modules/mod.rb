@@ -8,10 +8,12 @@ module VDOM
     class Mod < Module
       attr_reader :code
       attr_reader :path
+      attr_reader :assets
 
-      def initialize(code, path)
+      def initialize(code, path, assets = [])
         @code = code
         @path = path
+        @assets = []
         System.register(path, self)
         instance_eval(@code, @path, 1)
       end
@@ -21,8 +23,10 @@ module VDOM
         instance_eval(@code, @path, 1)
       end
 
-      def marshal_dump = [@code, @path]
-      def marshal_load(data) = initialize(*data)
+      def marshal_dump =
+        [@code, @path, @assets]
+      def marshal_load(data) =
+        initialize(*data)
     end
   end
 end
