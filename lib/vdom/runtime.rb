@@ -188,7 +188,7 @@ module VDOM
       end
 
       def to_s
-        "<!DOCTYPE html>\n#{@html.to_s}"
+        "<!DOCTYPE html>\n#{@html.to_s}\n"
       end
 
       def add_asset(asset)
