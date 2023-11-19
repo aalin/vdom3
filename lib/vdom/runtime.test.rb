@@ -5,6 +5,7 @@ require "nokogiri"
 require_relative "runtime"
 require_relative "environment"
 require_relative "modules"
+require_relative "server"
 
 class VDOM::Runtime::Test < Minitest::Test
   H = VDOM::Descriptors::H
@@ -84,6 +85,23 @@ class VDOM::Runtime::Test < Minitest::Test
       assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
         <body><heading><h1>Updated title</h1></heading></body>
       HTML
+    end
+  end
+
+  def test_head
+    with_runtime do |runtime|
+      runtime.render(
+        H[
+          :div,
+          H[:head,
+            H[:title, "hello"]
+          ],
+          H[:article, "foobar"]
+        ]
+      )
+
+      assert_equal Nokogiri.HTML(runtime.to_html).at("title").to_s,
+        "hello"
     end
   end
 

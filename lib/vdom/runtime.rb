@@ -98,6 +98,8 @@ module VDOM
         @id = VNode.generate_id
       end
 
+      def after_initialize = nil
+
       def patch(&)
         @root.patch(&)
       end
@@ -413,6 +415,10 @@ module VDOM
 
           @parent.update_children_order
 
+          # Async do
+          #   @children.each(&:after_initialize)
+          # end
+
           grouped.values.flatten.each(&:unmount)
         end
       end
@@ -668,7 +674,10 @@ module VDOM
         # TODO:
         # add_to_document should be called here,
         # but somehow we get into an infinite loop if we do that.
-        # add_to_document
+      end
+
+      def after_initialize
+        add_to_document
       end
 
       def dom_id_tree = nil
