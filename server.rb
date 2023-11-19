@@ -15,7 +15,8 @@ Sync do
       bind: "https://localhost:8080",
       localhost: true,
       descriptor: H[layout, H[page]],
-      public_path: File.join(__dir__, "public")
+      public_path: File.join(__dir__, "public"),
+      root_path: __dir__
     )
 
     server.run
