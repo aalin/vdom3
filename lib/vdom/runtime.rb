@@ -22,46 +22,6 @@ module VDOM
     class Unmount < Exception
     end
 
-    module Components
-      class Head < Component::Base
-        def render
-          @props => {
-            session_id:,
-            descriptor:,
-            main_js:,
-            assets:,
-          }
-
-          H[:__head,
-            *descriptor.children,
-            H[:script,
-              type: "module",
-              src: [main_js, "#", session_id].join,
-              async: true,
-            ],
-            *stylesheet_links(assets),
-            **descriptor.props
-          ]
-        end
-
-        private
-
-        def stylesheet_links(assets) =
-          assets.map do |asset|
-            if asset.content_type == "text/css"
-              href = File.join("/.mayu/assets", asset.filename)
-              puts "\e[3;35m#{href}\e[0m"
-
-              H[:link,
-                key: href,
-                rel: "stylesheet",
-                href:,
-              ]
-            end
-          end.compact
-      end
-    end
-
     IdNode = Data.define(:id, :name, :children) do
       def self.[](id, name, children = nil)
         new(id, name, children)
@@ -144,16 +104,7 @@ module VDOM
         in Descriptors::Element[type: :slot]
           VSlot.new(descriptor, parent: self)
         in Descriptors::Element[type: :head]
-          VComponent.new(
-            Descriptors::H[
-              Components::Head,
-              descriptor:,
-              session_id: @root.session_id,
-              main_js: "/.mayu/runtime/#{@root.environment.main_js}",
-              assets: closest(VDocument).assets.to_a
-            ], parent: self)
-        in Descriptors::Element[type: :__head]
-          VElement.new(descriptor.with(type: :head), parent: self)
+          VElement.new(descriptor, parent: self)
         in Descriptors::Element
           VElement.new(descriptor, parent: self)
         in Descriptors::Comment
@@ -173,16 +124,17 @@ module VDOM
     end
 
     class VDocument < VNode
-      attr_reader :assets
+      H = Descriptors::H
 
       def initialize(...)
         super
-        @children = VChildren.new([@descriptor], parent: self)
+
         @assets = Set.new
+        @html = VElement.new(init_html, parent: self)
       end
 
       def to_s
-        "<!doctype html>\n#{@children.to_s}"
+        "<!DOCTYPE html>\n#{@html.to_s}"
       end
 
       def add_asset(asset)
@@ -194,22 +146,26 @@ module VDOM
             patches << Patches::AddStyleSheet[asset.filename]
           end
         end
+
+        @html.update(init_html)
       end
 
       def dom_id_tree =
-        @children.dom_id_tree.first.first
+        @html.dom_id_tree
 
       def update(descriptor)
+        @descriptor = descriptor
+
         patch do
-          @children.update([descriptor])
+          @html.update(init_html)
         end
       end
 
       def mount
         @task = Async do
-          @children.mount&.wait
+          @html.mount&.wait
         rescue Unmount
-          @children.unmount
+          @html.unmount
         end
       end
 
@@ -218,6 +174,47 @@ module VDOM
 
       def update_children_order
         nil
+      end
+
+      private
+
+      def init_html
+        H[:html,
+          H[:head,
+            script_tag,
+            *stylesheet_links,
+            key: "head",
+          ],
+          *@descriptor,
+          key: "html"
+        ]
+      end
+
+      def stylesheet_links
+        @assets.map do |asset|
+          if asset.content_type == "text/css"
+            href = File.join("/.mayu/assets", asset.filename)
+            puts "\e[3;35m#{href}\e[0m"
+
+            H[:link,
+              key: href,
+              rel: "stylesheet",
+              href:,
+            ]
+          end
+        end.compact
+      end
+
+      def script_tag
+        H[:script,
+          type: "module",
+          src: format(
+            "%s#%s",
+            File.join("/.mayu/runtime", @parent.environment.main_js),
+            @parent.session_id
+          ),
+          async: true,
+        ]
       end
     end
 

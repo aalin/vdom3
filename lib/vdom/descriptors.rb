@@ -8,12 +8,12 @@ module VDOM
     Element = Data.define(:type, :children, :key, :slot, :props, :hash) do
       def self.[](type, *children, key: nil, slot: nil, **props) =
         new(
-          type,
-          children,
-          key,
-          slot,
-          props,
-          calculate_hash(type, key, slot, props)
+          type:,
+          children:,
+          key:,
+          slot:,
+          props:,
+          hash: calculate_hash(type, key, slot, props)
         )
 
       def self.calculate_hash(type, key, slot, props) =

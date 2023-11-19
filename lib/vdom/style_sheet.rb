@@ -1,11 +1,11 @@
 module VDOM
   NullStyleSheet = Data.define(:component_class) do
     def [](*class_names)
-      unless class_names.all? { _1.start_with?("__") }
+      unless class_names.compact.all? { _1.start_with?("__") || String === _1 }
         Console.logger.error(component_class.filename, "\e[31mNo stylesheet defined\e[0m")
       end
 
-      []
+      class_names.filter { String === _1 }
     end
   end
 
@@ -14,7 +14,7 @@ module VDOM
       "#{content_hash}.css"
 
     def [](*class_names)
-      class_names.flatten.map do |class_name|
+      class_names.compact.flatten.map do |class_name|
         case class_name
         in String
           class_name

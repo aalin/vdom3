@@ -36,7 +36,7 @@ module VDOM
           end
 
         if classes = result.delete(:class)
-          classnames = self::Styles[*Array(classes)]
+          classnames = self::Styles[*Array(classes).compact]
 
           unless classnames.empty?
             result[:class] = classnames.join(" ")
