@@ -13,12 +13,12 @@ module VDOM
       def initialize(...)
         super
         @deflate =
-            Zlib::Deflate.new(
-              Zlib::BEST_COMPRESSION,
-              -Zlib::MAX_WBITS,
-              Zlib::MAX_MEM_LEVEL,
-              Zlib::HUFFMAN_ONLY
-            )
+          Zlib::Deflate.new(
+            Zlib::BEST_COMPRESSION,
+            -Zlib::MAX_WBITS,
+            Zlib::MAX_MEM_LEVEL,
+            Zlib::HUFFMAN_ONLY
+          )
         @wrapper = MsgPackWrapper.new
       end
 
@@ -30,20 +30,26 @@ module VDOM
           .then { super(_1) }
       end
 
-
       def close(reason = nil)
-        @queue.enqueue(@deflate.flush(Zlib::FINISH)) rescue nil
-        @deflate.close rescue nil
+        begin
+          @queue.enqueue(@deflate.flush(Zlib::FINISH))
+        rescue StandardError
+          nil
+        end
+        begin
+          @deflate.close
+        rescue StandardError
+          nil
+        end
         super
       end
     end
 
-    Blob = Data.define(:data) do
-      def self.from_msgpack_ext(data) =
-        new(data)
-      def to_msgpack_ext =
-        data
-    end
+    Blob =
+      Data.define(:data) do
+        def self.from_msgpack_ext(data) = new(data)
+        def to_msgpack_ext = data
+      end
 
     class MsgPackWrapper < MessagePack::Factory
       def initialize
@@ -53,15 +59,15 @@ module VDOM
       end
     end
 
-    PatchSet = Data.define(:id, :patches) do
-      def self.[](patches) =
-        new(Nanoid.generate, [patches].flatten)
+    PatchSet =
+      Data.define(:id, :patches) do
+        def self.[](patches) = new(Nanoid.generate, [patches].flatten)
 
-      def to_a
-        patches.map do |patch|
-          [patch.class.name[/[^:]+\z/], *patch.deconstruct]
+        def to_a
+          patches.map do |patch|
+            [patch.class.name[/[^:]+\z/], *patch.deconstruct]
+          end
         end
       end
-    end
   end
 end

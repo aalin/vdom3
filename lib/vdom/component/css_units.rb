@@ -5,51 +5,54 @@
 
 module VDOM
   module CSSUnits
-    CustomProperty = Data.define(:name) do
-      def self.[](name) = new(name.to_s.tr("_", "-"))
+    CustomProperty =
+      Data.define(:name) do
+        def self.[](name) = new(name.to_s.tr("_", "-"))
 
-      def to_s = "var(#{name})"
-      alias inspect to_s
-    end
+        def to_s = "var(#{name})"
+        alias inspect to_s
+      end
 
-    Calc = Data.define(:left, :operator, :right) do
-      def to_s = "calc(#{left} #{operator} #{right})".gsub("(calc(", "((")
-      alias inspect to_s
+    Calc =
+      Data.define(:left, :operator, :right) do
+        def to_s = "calc(#{left} #{operator} #{right})".gsub("(calc(", "((")
+        alias inspect to_s
 
-      def +(other) = Calc[self, __method__, other]
-      def -(other) = Calc[self, __method__, other]
-      def *(other) = Calc[self, __method__, other]
-      def /(other) = Calc[self, __method__, other]
-    end
+        def +(other) = Calc[self, __method__, other]
+        def -(other) = Calc[self, __method__, other]
+        def *(other) = Calc[self, __method__, other]
+        def /(other) = Calc[self, __method__, other]
+      end
 
-    NumberWithUnit = Data.define(:number, :unit) do
-      def to_s = "#{number}#{unit}"
-      alias inspect to_s
+    NumberWithUnit =
+      Data.define(:number, :unit) do
+        def to_s = "#{number}#{unit}"
+        alias inspect to_s
 
-      def +(other) = handle_operator(__method__, other)
-      def -(other) = handle_operator(__method__, other)
-      def *(other) = handle_operator(__method__, other)
-      def /(other) = handle_operator(__method__, other)
+        def +(other) = handle_operator(__method__, other)
+        def -(other) = handle_operator(__method__, other)
+        def *(other) = handle_operator(__method__, other)
+        def /(other) = handle_operator(__method__, other)
 
-      private
+        private
 
-      def handle_operator(operator, other)
-        case other
-        when Symbol
-          Calc[self, operator, CustomProperty[other]]
-        when Calc
-          Calc[self, operator, other]
-        when NumberWithUnit
-          if unit == other.unit
-            NumberWithUnit[number.send(operator, other.number), unit]
-          else
+        def handle_operator(operator, other)
+          case other
+          when Symbol
+            Calc[self, operator, CustomProperty[other]]
+          when Calc
             Calc[self, operator, other]
+          when NumberWithUnit
+            if unit == other.unit
+              NumberWithUnit[number.send(operator, other.number), unit]
+            else
+              Calc[self, operator, other]
+            end
+          else
+            NumberWithUnit[number.send(operator, other), unit]
           end
-        else
-          NumberWithUnit[number.send(operator, other), unit]
         end
       end
-    end
 
     module Refinements
       refine Numeric do

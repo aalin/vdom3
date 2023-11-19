@@ -18,37 +18,38 @@ require_relative "../style_sheet"
 module VDOM
   module Transformers
     module Haml
-      TransformResult = Data.define(
-        :filename,
-        :output,
-        :content_hash,
-        :css,
-        :source_map,
-      )
+      TransformResult =
+        Data.define(:filename, :output, :content_hash, :css, :source_map)
 
-      TransformOptions = Data.define(:source, :source_path, :source_line, :content_hash, :transform_elements_to_classes, :enable_new_helper_ident) do
-        def source_path_without_extension
-          File.join(
-            File.dirname(source_path),
-            File.basename(source_path, ".*")
-          ).delete_prefix("./")
+      TransformOptions =
+        Data.define(
+          :source,
+          :source_path,
+          :source_line,
+          :content_hash,
+          :transform_elements_to_classes,
+          :enable_new_helper_ident
+        ) do
+          def source_path_without_extension
+            File.join(
+              File.dirname(source_path),
+              File.basename(source_path, ".*")
+            ).delete_prefix("./")
+          end
         end
-      end
 
       def self.transform(source, relative_path)
-        options = TransformOptions[
-          source:,
-          source_path: relative_path,
-          source_line: 1,
-          content_hash: "x",
-          transform_elements_to_classes: false,
-          enable_new_helper_ident: false,
-        ]
+        options =
+          TransformOptions[
+            source:,
+            source_path: relative_path,
+            source_line: 1,
+            content_hash: "x",
+            transform_elements_to_classes: false,
+            enable_new_helper_ident: false
+          ]
 
-        result =
-          SyntaxTree::Haml.parse(source).accept(
-            Transformer.new(options)
-          )
+        result = SyntaxTree::Haml.parse(source).accept(Transformer.new(options))
 
         TransformResult.new(
           filename: options.source_path,
@@ -89,10 +90,7 @@ module VDOM
             "Styles",
             if styles.empty?
               ARef(
-                ConstPathRef(
-                  VarRef(Const("VDOM")),
-                  Const("NullStyleSheet")
-                ),
+                ConstPathRef(VarRef(Const("VDOM")), Const("NullStyleSheet")),
                 Args([VarRef(Kw("self"))])
               )
             else
@@ -139,13 +137,7 @@ module VDOM
                   nil,
                   Ident("render"),
                   nil,
-                  BodyStmt(
-                    Statements(statements),
-                    nil,
-                    nil,
-                    nil,
-                    nil
-                  )
+                  BodyStmt(Statements(statements), nil, nil, nil, nil)
                 )
               ]
             ),
@@ -176,9 +168,7 @@ module VDOM
             h_const,
             Period("."),
             Ident("comment"),
-            ArgParen(Args([
-              StringLiteral([TStringContent(content)], '"')
-            ]))
+            ArgParen(Args([StringLiteral([TStringContent(content)], '"')]))
           )
         end
 
@@ -302,8 +292,9 @@ module VDOM
           in [statement]
             statement
           else
-            Statements(statements)
-              .then { Begin(BodyStmt(_1, nil, nil, nil, nil)) }
+            Statements(statements).then do
+              Begin(BodyStmt(_1, nil, nil, nil, nil))
+            end
           end
         end
 
@@ -334,21 +325,13 @@ module VDOM
             h_const,
             Period("."),
             Ident("callback"),
-            ArgParen(Args([
-              VarRef(Kw("self")),
-              SymbolLiteral(name)
-            ]))
+            ArgParen(Args([VarRef(Kw("self")), SymbolLiteral(name)]))
           )
         end
 
         def call_helpers(method, *args)
           CallNode(
-            CallNode(
-              VarRef(Kw("self")),
-              Period("."),
-              Ident("class"),
-              nil
-            ), # mayu_const_path,
+            CallNode(VarRef(Kw("self")), Period("."), Ident("class"), nil), # mayu_const_path,
             Period("."),
             Ident(method.to_s),
             wrap_args([*args.flatten.compact])
@@ -377,11 +360,12 @@ module VDOM
       end
 
       class Transformer < SyntaxTree::Haml::Visitor
-        Result = Data.define(:program, :styles) do
-          def source
-            SyntaxTree::Formatter.format("", program)
+        Result =
+          Data.define(:program, :styles) do
+            def source
+              SyntaxTree::Formatter.format("", program)
+            end
           end
-        end
 
         def initialize(options)
           @options = options
@@ -427,12 +411,16 @@ module VDOM
         def visit_comment(node)
           @builder.comment(
             if node.children
-              node.children.map do |child|
-                formatter = SyntaxTree::Haml::Format::Formatter.new("", +"", 80)
-                child.format(formatter)
-                formatter.flush
-                formatter.output
-              end.join("\n")
+              node
+                .children
+                .map do |child|
+                  formatter =
+                    SyntaxTree::Haml::Format::Formatter.new("", +"", 80)
+                  child.format(formatter)
+                  formatter.flush
+                  formatter.output
+                end
+                .join("\n")
             else
               @builder.comment(node.value[:text])
             end
@@ -456,10 +444,7 @@ module VDOM
           end
 
           return(
-            @builder.slot(
-              name,
-              fallback: node.children.map { _1.accept(self) }
-            )
+            @builder.slot(name, fallback: node.children.map { _1.accept(self) })
           )
         end
 
@@ -561,12 +546,10 @@ module VDOM
                 true
               in [
                    {
-                     type: :script,
-                     value: { keyword: "case" } | { text: IN_RE }
+                     type: :script, value: { keyword: "case" } | { text: IN_RE }
                    },
                    {
-                     type: :script,
-                     value: { keyword: "else" } | { text: IN_RE }
+                     type: :script, value: { keyword: "else" } | { text: IN_RE }
                    }
                  ]
                 true
@@ -654,9 +637,7 @@ module VDOM
         def prepend_whitespace(children)
           [nil, *children].each_cons(2)
             .map do |prev, curr|
-              if prev in {
-                   type: :tag, value: { nuke_outer_whitespace: true }
-                 }
+              if prev in { type: :tag, value: { nuke_outer_whitespace: true } }
                 if curr in { type: :plain, value: { text: } }
                   curr.value = { text: " #{text}" }
                 else
@@ -671,9 +652,7 @@ module VDOM
         def append_whitespace(children)
           [*children, nil].each_cons(2)
             .flat_map do |curr, succ|
-              if succ in {
-                   type: :tag, value: { nuke_inner_whitespace: true }
-                 }
+              if succ in { type: :tag, value: { nuke_inner_whitespace: true } }
                 if curr in { type: :plain, value: { text: } }
                   curr.value = { text: "#{text} " }
                 else
@@ -866,9 +845,7 @@ module VDOM
               "VarRef[value: GVar[value: /\\A\\$\\w+/]]"
             ) { |var_ref| aref(var_ref.value) }
 
-            visitor.mutate(
-              "Assign[target: VarField[value: GVar]]"
-            ) do |assign|
+            visitor.mutate("Assign[target: VarField[value: GVar]]") do |assign|
               assign => { target: { target: { value: var_name } } }
               loc = assign.target.location
               raise "Can not write to prop #{var_name} on line #{loc.start_line} col #{loc.start_column}"
@@ -884,9 +861,7 @@ module VDOM
               CallNode(nil, nil, Ident("update!"), ArgParen(Args([assign])))
             end
 
-            visitor.mutate(
-              "Assign[target: VarField[value: IVar]]"
-            ) do |assign|
+            visitor.mutate("Assign[target: VarField[value: IVar]]") do |assign|
               CallNode(nil, nil, Ident("update!"), ArgParen(Args([assign])))
               # assign.copy(target: aref_field(assign.target.value))
             end

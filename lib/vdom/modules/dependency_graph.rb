@@ -39,14 +39,11 @@ module VDOM
         @nodes = {}
       end
 
-      def size =
-        @nodes.size
+      def size = @nodes.size
 
-      def include?(id) =
-        @nodes.include?(id)
+      def include?(id) = @nodes.include?(id)
 
-      def add_node(id, obj) =
-        (@nodes[id] ||= Node.new(obj)).obj
+      def add_node(id, obj) = (@nodes[id] ||= Node.new(obj)).obj
 
       def delete_node(id)
         return unless @nodes.include?(id)
@@ -54,17 +51,13 @@ module VDOM
         delete_connections(id)
       end
 
-      def delete_connections(id) =
-        @nodes.each { |node| node.delete(id) }
+      def delete_connections(id) = @nodes.each { |node| node.delete(id) }
 
-      def get_node(id) =
-        @nodes[id]
+      def get_node(id) = @nodes[id]
 
-      def get_obj(id) =
-        @nodes[id]&.obj
+      def get_obj(id) = @nodes[id]&.obj
 
-      def has_node?(id) =
-        @nodes.include?(id)
+      def has_node?(id) = @nodes.include?(id)
 
       def add_dependency(source_id, target_id) =
         with_source_and_target(source_id, target_id) do |source, target|
@@ -78,11 +71,9 @@ module VDOM
           source.incoming.delete(source_id)
         end
 
-      def direct_dependencies_of(id) =
-        @nodes.fetch(id).outgoing.to_a
+      def direct_dependencies_of(id) = @nodes.fetch(id).outgoing.to_a
 
-      def direct_dependants_of(id) =
-        @nodes.fetch(id).incoming.to_a
+      def direct_dependants_of(id) = @nodes.fetch(id).incoming.to_a
 
       def dependencies_of(id, started_at = nil, only_leaves: false, &block)
         raise "Circular" if id == started_at
@@ -122,8 +113,7 @@ module VDOM
           .reduce(Set.new, &:merge)
       end
 
-      def entry_nodes =
-        @nodes.filter { _2.incoming.empty? }.keys
+      def entry_nodes = @nodes.filter { _2.incoming.empty? }.keys
 
       def overall_order(only_leaves: true) =
         TSort.tsort(
@@ -131,11 +121,9 @@ module VDOM
           ->(key, &b) { @nodes[key]&.outgoing&.each(&b) }
         )
 
-      def paths =
-        @nodes.keys
+      def paths = @nodes.keys
 
-      def each_obj(&block) =
-        @nodes.each_value { |node| yield node.obj }
+      def each_obj(&block) = @nodes.each_value { |node| yield node.obj }
 
       def dfs2(id, direction, visited: T::Set[String].new, &block)
         if visited.include?(id)

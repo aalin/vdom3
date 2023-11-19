@@ -816,8 +816,9 @@ module VDOM
 
     def dom_id_tree = @document.dom_id_tree
 
-    def clear_queue! =
+    def clear_queue!
       puts "\e[33m#{@patches.dequeue.inspect}\e[0m" until @patches.empty?
+    end
 
     def commit(patch_set)
       @patches.enqueue(patch_set.to_a) if @task

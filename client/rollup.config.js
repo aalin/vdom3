@@ -5,7 +5,7 @@ import terser from "@rollup/plugin-terser";
 import del from "rollup-plugin-delete";
 // import { visualizer } from "rollup-plugin-visualizer";
 import { minify } from "html-minifier-terser";
-import { nodeResolve } from '@rollup/plugin-node-resolve';
+import { nodeResolve } from "@rollup/plugin-node-resolve";
 
 function entriesJSON() {
   return {

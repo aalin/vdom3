@@ -14,4 +14,4 @@ function supportsRequestStreams() {
   return duplexAccessed && !hasContentType;
 }
 
-export default supportsRequestStreams()
+export default supportsRequestStreams();

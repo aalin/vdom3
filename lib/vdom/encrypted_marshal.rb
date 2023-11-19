@@ -54,11 +54,7 @@ module VDOM
 
       now = Time.now.to_f
 
-      {
-        iss: now,
-        exp: now + ttl,
-        payload:,
-      }
+      { iss: now, exp: now + ttl, payload: }
     end
 
     def decode_message(message)
@@ -79,22 +75,22 @@ module VDOM
       payload
     end
 
-    def validate_ttl!(ttl) =
-      if ttl < 0
-        raise ArgumentError,
-          "ttl must be positive"
-      end
+    def validate_ttl!(ttl)
+      raise ArgumentError, "ttl must be positive" if ttl < 0
+    end
 
-    def validate_iss!(now, iss) =
+    def validate_iss!(now, iss)
       if iss > now
         raise IssuedInTheFutureError,
-          "The message was issued at #{Time.at(iss).iso8601}, which is in the future"
+              "The message was issued at #{Time.at(iss).iso8601}, which is in the future"
       end
+    end
 
-    def validate_exp!(now, exp) =
+    def validate_exp!(now, exp)
       if exp < now
         raise ExpiredError,
-          "The message expired at #{Time.at(exp).iso8601}, which is in the past"
+              "The message expired at #{Time.at(exp).iso8601}, which is in the past"
       end
+    end
   end
 end

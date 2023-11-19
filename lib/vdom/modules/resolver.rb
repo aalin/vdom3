@@ -38,9 +38,11 @@ module VDOM
             resolve_with_extensions(
               File.join(absolute_path, basename)
             ) do |extension|
-              return @resolved_paths.store(
-                relative_to_root,
-                File.join(relative_to_root, basename) + extension
+              return(
+                @resolved_paths.store(
+                  relative_to_root,
+                  File.join(relative_to_root, basename) + extension
+                )
               )
             end
           end

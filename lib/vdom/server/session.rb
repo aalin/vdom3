@@ -9,19 +9,18 @@ module VDOM
 
         TOKEN_LENGTH = 64
 
-        def self.validate!(token) =
+        def self.validate!(token)
           unless valid_format?(token)
             raise InvalidTokenError
           end
+        end
 
         def self.valid_format?(token) =
           token.match?(/\A[[:alnum:]]{#{TOKEN_LENGTH}}\z/)
 
-        def self.generate =
-          SecureRandom.alphanumeric(TOKEN_LENGTH)
+        def self.generate = SecureRandom.alphanumeric(TOKEN_LENGTH)
 
-        def self.equal?(a, b) =
-          RbNaCl::Util.verify64(a, b)
+        def self.equal?(a, b) = RbNaCl::Util.verify64(a, b)
       end
 
       attr_reader :id
@@ -35,10 +34,7 @@ module VDOM
         @output = Async::Queue.new
         @stop = Async::Condition.new
 
-        @runtime = VDOM::Runtime.new(
-          environment: environment,
-          session_id: @id
-        )
+        @runtime = VDOM::Runtime.new(environment: environment, session_id: @id)
         @runtime.render(descriptor)
       end
 
@@ -47,21 +43,15 @@ module VDOM
         @runtime.to_html
       end
 
-      def dom_id_tree =
-        @runtime.dom_id_tree
+      def dom_id_tree = @runtime.dom_id_tree
 
-      def stop =
-        @stop.signal
+      def stop = @stop.signal
 
       def run
         @runtime.run do
           barrier = Async::Barrier.new
 
-          barrier.async do
-            loop do
-              @output.enqueue([@runtime.dequeue].flatten)
-            end
-          end
+          barrier.async { loop { @output.enqueue([@runtime.dequeue].flatten) } }
 
           barrier.async do
             @stop.wait
@@ -74,14 +64,11 @@ module VDOM
         end
       end
 
-      def take =
-        @output.dequeue
+      def take = @output.dequeue
 
-      def callback(id, payload) =
-        @runtime.callback(id, payload)
+      def callback(id, payload) = @runtime.callback(id, payload)
 
-      def pong(time) =
-        @input.enqueue([:pong, time])
+      def pong(time) = @input.enqueue([:pong, time])
 
       # def run(descriptor, task: Async::Task.current)
       #   VDOM::Runtime.run do |runtime|
@@ -113,9 +100,9 @@ module VDOM
 
       def handle_input(runtime, message)
         case message
-        in :callback, callback_id, payload
+        in [:callback, callback_id, payload]
           runtime.handle_callback(callback_id, payload)
-        in :pong, time
+        in [:pong, time]
           pong = current_ping_time - time
           puts format("Ping: %.2fms", pong)
         in unhandled

@@ -18,11 +18,9 @@ module VDOM
         Session::Token.equal?(session.token, token) && session
       end
 
-      def store(session) =
-        @sessions.store(session.id, session)
+      def store(session) = @sessions.store(session.id, session)
 
-      def stop! =
-        @sessions.each_value(&:stop)
+      def stop! = @sessions.each_value(&:stop)
 
       def clear_stale
         @sessions.delete_if do |session|

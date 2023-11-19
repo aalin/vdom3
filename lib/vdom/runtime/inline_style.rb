@@ -56,29 +56,39 @@ module VDOM
       ].freeze
 
       def self.stringify(properties)
-        properties.map do |property, value|
-          "#{format_property(property)}:#{format_value(property, value)};"
-        end.join
+        properties
+          .map do |property, value|
+            "#{format_property(property)}:#{format_value(property, value)};"
+          end
+          .join
       end
 
       def self.diff(dom_id, old_properties, new_properties)
-        old_properties.keys.union(new_properties.keys).map do |property|
-          old_value = old_properties[property]
-          new_value = new_properties[property]
+        old_properties
+          .keys
+          .union(new_properties.keys)
+          .map do |property|
+            old_value = old_properties[property]
+            new_value = new_properties[property]
 
-          next if old_value == new_value
+            next if old_value == new_value
 
-          unless new_value
-            yield Patches::RemoveCSSProperty[dom_id, format_property(property)]
-            next
+            unless new_value
+              yield(
+                Patches::RemoveCSSProperty[dom_id, format_property(property)]
+              )
+              next
+            end
+
+            yield(
+              Patches::SetCSSProperty[
+                dom_id,
+                format_property(property),
+                format_value(property, new_value)
+              ]
+            )
           end
-
-          yield Patches::SetCSSProperty[
-            dom_id,
-            format_property(property),
-            format_value(property, new_value)
-          ]
-        end.compact
+          .compact
       end
 
       def self.format_property(property)
@@ -86,11 +96,7 @@ module VDOM
       end
 
       def self.format_value(property, value)
-        if should_apply_px?(property, value)
-          "#{value}px"
-        else
-          value.to_s
-        end
+        should_apply_px?(property, value) ? "#{value}px" : value.to_s
       end
 
       def self.should_apply_px?(property, value)

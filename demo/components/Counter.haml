@@ -28,11 +28,12 @@
 
 %div
   %output= @count
-  %h1{style: { font_size: @count * 4, transition: "font-size 500ms", margin: 0 }}
-    cou#{@count2}nter
+  %h1{style: { font_size: @count * 4, transition: "font-size 500ms", margin: 0 }
+  }
+    = "cou#{@count2}nter"
   = if @count in 3..12
     %h2 HELLO! #{@count}
-  %p{style: {font_size: 2.em}}
+  %p{style: { font_size: 2.em }}
     = if @count in 5..10
       = ["foo", (@count in 7..9) ? "bar" : nil, "baz"].compact
     = if @count == 2

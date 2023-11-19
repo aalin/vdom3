@@ -11,14 +11,15 @@ Sync do
     layout = VDOM::Modules::System.import("pages/layout.haml")
     page = VDOM::Modules::System.import("pages/page.haml")
 
-    server = VDOM::Server.new(
-      bind: "https://localhost:8080",
-      localhost: true,
-      descriptor: H[layout, H[page]],
-      public_path: File.join(__dir__, "public"),
-      root_path: __dir__,
-      secret_key: "TODO: Replace this with a secret key"
-    )
+    server =
+      VDOM::Server.new(
+        bind: "https://localhost:8080",
+        localhost: true,
+        descriptor: H[layout, H[page]],
+        public_path: File.join(__dir__, "public"),
+        root_path: __dir__,
+        secret_key: "TODO: Replace this with a secret key"
+      )
 
     server.run
   end

@@ -19,22 +19,28 @@ require_relative "server/app"
 
 module VDOM
   class Server
-    def initialize(bind:, localhost:, descriptor:, public_path:, root_path:, secret_key:)
+    def initialize(
+      bind:,
+      localhost:,
+      descriptor:,
+      public_path:,
+      root_path:,
+      secret_key:
+    )
       @uri = URI.parse(bind)
       @app = App.new(descriptor:, public_path:, root_path:, secret_key:)
 
       endpoint = Async::HTTP::Endpoint.new(@uri)
 
-      if localhost
-        endpoint = apply_local_certificate(endpoint)
-      end
+      endpoint = apply_local_certificate(endpoint) if localhost
 
-      @server = Async::HTTP::Server.new(
-        @app,
-        endpoint,
-        scheme: @uri.scheme,
-        protocol: Async::HTTP::Protocol::HTTP2,
-      )
+      @server =
+        Async::HTTP::Server.new(
+          @app,
+          endpoint,
+          scheme: @uri.scheme,
+          protocol: Async::HTTP::Protocol::HTTP2
+        )
     end
 
     def run(task: Async::Task.current)

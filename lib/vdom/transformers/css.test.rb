@@ -3,7 +3,8 @@ require_relative "css"
 
 class VDOM::Transformers::CSS::Test < Minitest::Test
   def test_transform
-    transformed = VDOM::Transformers::CSS.transform("/app/components/Hello.css", <<~CSS)
+    transformed =
+      VDOM::Transformers::CSS.transform("/app/components/Hello.css", <<~CSS)
       ul { background: rgb(0 128 255 / 50%); }
       li { border: 1px solid #f0f; }
       .foo { border: 1px solid #f0f; }
@@ -42,12 +43,16 @@ class VDOM::Transformers::CSS::Test < Minitest::Test
   end
 
   def test_transform_inline
-    ast = VDOM::Transformers::CSS.transform_inline("/app/components/Hello.css", <<~CSS)
+    ast =
+      VDOM::Transformers::CSS.transform_inline(
+        "/app/components/Hello.css",
+        <<~CSS
       ul { background: rgb(0 128 255 / 50%); }
       li { border: 1px solid #f0f; }
       .foo { border: 1px solid #f0f; }
       .bar { background: url("./bar.png"); }
     CSS
+      )
 
     transformed = SyntaxTree::Formatter.format("", ast)
 

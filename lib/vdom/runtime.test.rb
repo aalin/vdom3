@@ -21,21 +21,13 @@ class VDOM::Runtime::Test < Minitest::Test
     COMPONENT_META = VDOM::Component::Metadata["ComponentWithSlots", __FILE__]
 
     def render
-      H[:body,
-        H[:heading,
-          H[:slot, name: "heading"],
-        ]
-      ]
+      H[:body, H[:heading, H[:slot, name: "heading"]]]
     end
   end
 
   def test_render
     with_runtime do |runtime|
-      runtime.render(
-        H[:body,
-          H[:h1, "Title"]
-        ]
-      )
+      runtime.render(H[:body, H[:h1, "Title"]])
 
       assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
         <body><h1>Title</h1></body>
@@ -46,8 +38,9 @@ class VDOM::Runtime::Test < Minitest::Test
   def test_attributes
     with_runtime do |runtime|
       runtime.render(
-        H[Layout,
-          H[:a, "Go to other page", href: "/other-page", class: "my-class"],
+        H[
+          Layout,
+          H[:a, "Go to other page", href: "/other-page", class: "my-class"]
         ]
       )
 
@@ -56,14 +49,13 @@ class VDOM::Runtime::Test < Minitest::Test
       HTML
 
       runtime.render(
-        H[Layout,
-          H[:a, "Go to other page", href: "/other-page2", class: "my-class"],
+        H[
+          Layout,
+          H[:a, "Go to other page", href: "/other-page2", class: "my-class"]
         ]
       )
 
-      read_patches(runtime) do
-        p _1
-      end
+      read_patches(runtime) { p _1 }
 
       assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
         <body><a href="/other-page2" class="my-class">Go to other page</a></body>
@@ -74,9 +66,10 @@ class VDOM::Runtime::Test < Minitest::Test
   def test_slots
     with_runtime do |runtime|
       runtime.render(
-        H[ComponentWithSlots,
+        H[
+          ComponentWithSlots,
           H[:h1, "Title", slot: "heading"],
-          H[:h1, "Unused", slot: "unused-slot"],
+          H[:h1, "Unused", slot: "unused-slot"]
         ]
       )
 
@@ -85,9 +78,7 @@ class VDOM::Runtime::Test < Minitest::Test
       HTML
 
       runtime.render(
-        H[ComponentWithSlots,
-          H[:h1, "Updated title", slot: "heading"],
-        ]
+        H[ComponentWithSlots, H[:h1, "Updated title", slot: "heading"]]
       )
 
       assert_equal get_body_html(runtime.to_html), <<~HTML.chomp
@@ -104,15 +95,18 @@ class VDOM::Runtime::Test < Minitest::Test
   def with_runtime
     Sync do
       VDOM::Modules::System.run(__dir__) do
-        yield VDOM::Runtime.new(
-          environment: VDOM::Environment.setup(File.join(__dir__, "..", "..")),
-          session_id: VDOM::Server::Session::Token.generate
+        yield(
+          VDOM::Runtime.new(
+            environment:
+              VDOM::Environment.setup(File.join(__dir__, "..", "..")),
+            session_id: VDOM::Server::Session::Token.generate
+          )
         )
       end
     end
   end
 
   def get_body_html(html)
-    Nokogiri::HTML(html).at("body").to_s
+    Nokogiri.HTML(html).at("body").to_s
   end
 end

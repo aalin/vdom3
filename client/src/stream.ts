@@ -2,16 +2,18 @@
 // License: AGPL-3.0
 
 import { STREAM_MIME_TYPE, STREAM_CONTENT_ENCODING } from "./constants";
-import supportsRequestStreams from './supportsRequestStreams'
+import supportsRequestStreams from "./supportsRequestStreams";
 
-export async function initInputStream(endpoint: string): Promise<ReadableStream<any>> {
+export async function initInputStream(
+  endpoint: string
+): Promise<ReadableStream<any>> {
   const res = await connect(endpoint);
 
-  if (!res.body) throw new Error('No body')
+  if (!res.body) throw new Error("No body");
 
   const contentEncoding = res.headers.get("content-encoding");
 
-  if (!contentEncoding) return res.body
+  if (!contentEncoding) return res.body;
 
   return res.body.pipeThrough(new DecompressionStream(contentEncoding as any));
 }
@@ -48,9 +50,9 @@ export async function connect(endpoint: string): Promise<Response> {
 }
 
 export class RAFQueue<T> {
-  onFlush: (queue: T[]) => void
-  queue: T[]
-  raf: number | null
+  onFlush: (queue: T[]) => void;
+  queue: T[];
+  raf: number | null;
 
   constructor(onFlush: (queue: T[]) => void) {
     this.onFlush = onFlush;

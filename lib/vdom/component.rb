@@ -16,10 +16,7 @@ module VDOM
       H = VDOM::Descriptors::H
 
       def self.import(filename) =
-        Modules::System.import(
-          filename,
-          caller.first.split(":", 2).first
-        )
+        Modules::System.import(filename, caller.first.split(":", 2).first)
 
       def self.display_name = name[/[^:]+\z/]
       def self.filename = self::FILENAME
@@ -40,9 +37,7 @@ module VDOM
         if classes = result.delete(:class)
           classnames = self::Styles[*Array(classes).compact]
 
-          unless classnames.empty?
-            result[:class] = classnames.join(" ")
-          end
+          result[:class] = classnames.join(" ") unless classnames.empty?
         end
 
         result

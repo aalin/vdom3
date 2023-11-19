@@ -42,10 +42,7 @@ module VDOM
     end
 
     def visit_aref(node)
-      node.copy(
-        collection: visit(node.collection),
-        index: visit(node.index),
-      )
+      node.copy(collection: visit(node.collection), index: visit(node.index))
     end
 
     def visit_if_op(node)

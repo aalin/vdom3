@@ -7,34 +7,34 @@ require "strscan"
 
 module VDOM
   class XMLUtils
-    Token = Data.define(:type, :value) do
-      def to_s = inspect
+    Token =
+      Data.define(:type, :value) do
+        def to_s = inspect
 
-      def inspect
-        case self
-        in type: :tag, value: { name:, attrs:, children: }
-          str = [name.to_sym, *children, *attrs]
-            .map(&:inspect)
-            .reject(&:empty?)
-            .join(", ")
-          "h(#{str})"
-        in type: :attr, value: { name:, value: }
-          " #{name}: #{value.inspect}"
-        in type: :var_ref, value: /\A@(.*)/
-          "self.state[:#{$~[1]}]"
-        in type: :var_ref, value: /\A\$(.*)/
-          "self.props[:#{$~[1]}]"
-        in type: :newline
-          ""
-        in type: :string, value:
-          value.inspect
-        in type: :statements, value:
-          SyntaxTree::Formatter.format("", value)
-        in type:, value:
-          "[#{type} #{value.inspect}]"
+        def inspect
+          case self
+          in { type: :tag, value: { name:, attrs:, children: } }
+            str = [name.to_sym, *children, *attrs].map(&:inspect)
+              .reject(&:empty?)
+              .join(", ")
+            "h(#{str})"
+          in { type: :attr, value: { name:, value: } }
+            " #{name}: #{value.inspect}"
+          in { type: :var_ref, value: /\A@(.*)/ }
+            "self.state[:#{$~[1]}]"
+          in { type: :var_ref, value: /\A\$(.*)/ }
+            "self.props[:#{$~[1]}]"
+          in type: :newline
+            ""
+          in { type: :string, value: }
+            value.inspect
+          in { type: :statements, value: }
+            SyntaxTree::Formatter.format("", value)
+          in { type:, value: }
+            "[#{type} #{value.inspect}]"
+          end
         end
       end
-    end
 
     class Tokenizer
       def T(type, value = nil)
@@ -54,11 +54,16 @@ module VDOM
         until ss.eos?
           new_state =
             case p(@state)
-            in :any then tokenize_any(ss)
-            in :string then tokenize_string(ss)
-            in :tag then tokenize_tag(ss)
-            in :attrs then tokenize_attrs(ss)
-            in :attr_value then tokenize_attr_value(ss)
+            in :any
+              tokenize_any(ss)
+            in :string
+              tokenize_string(ss)
+            in :tag
+              tokenize_tag(ss)
+            in :attrs
+              tokenize_attrs(ss)
+            in :attr_value
+              tokenize_attr_value(ss)
             end
           @state = new_state
         end
@@ -127,10 +132,8 @@ module VDOM
           return :any
         end
 
-        if ss.scan(/\//)
-          unless ss.scan(/>/)
-            raise "Expected > after /"
-          end
+        if ss.scan(%r{/})
+          raise "Expected > after /" unless ss.scan(/>/)
 
           T(:open_tag_end, self_closing: true)
 
@@ -139,9 +142,7 @@ module VDOM
 
         attr = ss.scan(/\w+/)
 
-        unless attr
-          return :attrs
-        end
+        return :attrs unless attr
 
         T(:attr_name, attr)
 
@@ -178,9 +179,7 @@ module VDOM
       attr_reader :tokens
 
       def parse(tokens)
-        @tokens.push(
-          parse_any(tokens)
-        ) until tokens.empty?
+        @tokens.push(parse_any(tokens)) until tokens.empty?
 
         self
       end
@@ -189,7 +188,7 @@ module VDOM
 
       def parse_any(tokens, close_tag = nil)
         case p(token = tokens.shift)
-        in type: :open_tag_begin, value:
+        in { type: :open_tag_begin, value: }
           parse_tag(tokens, value)
         in type: :string
           token
@@ -209,12 +208,12 @@ module VDOM
 
         while token = tokens.shift
           case token
-          in type: :open_tag_end, value: { self_closing: true }
+          in { type: :open_tag_end, value: { self_closing: true } }
             return Token[:tag, { name:, attrs:, children: [] }]
           in type: :open_tag_end
             children = parse_children(tokens, name)
             return Token[:tag, { name:, attrs:, children: }]
-          in type: :attr_name, value:
+          in { type: :attr_name, value: }
             attrs.push(parse_attr(tokens, value))
           end
         end
@@ -225,9 +224,9 @@ module VDOM
 
         while token = parse_any(tokens, close_tag)
           case token
-          in type: :close_tag, value: ^close_tag
+          in { type: :close_tag, value: close_tag }
             return children
-          in type: :close_tag, value:
+          in { type: :close_tag, value: }
             raise "Expected close tag for #{close_tag} but got #{value}"
           else
             children.push(token)

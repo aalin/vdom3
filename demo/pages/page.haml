@@ -20,11 +20,11 @@
   items = ["foo", "bar", "baz"]
 %head
   %title My webpage #{@count}
-  %meta(name="hello" content="foobar #{@count / 2}")
+  %meta(content="foobar #{@count / 2}"){name: "hello"}
 %div
   %Heading My webpage
-  %h2(class="subtitle")= title
-  %details(open="open")
+  %h2.subtitle= title
+  %details{open: "open"}
     %summary Handlers
     %Handlers
   %details

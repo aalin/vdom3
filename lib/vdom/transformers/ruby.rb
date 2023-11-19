@@ -16,27 +16,27 @@ module VDOM
         end
 
         def visit_statements(node)
-          node.copy(body: [
-            SyntaxTree::Comment.new(
-              value: "# frozen_string_literal: true",
-              inline: false,
-              location: node.location
-            ),
-            *node.body,
-          ])
+          node.copy(
+            body: [
+              SyntaxTree::Comment.new(
+                value: "# frozen_string_literal: true",
+                inline: false,
+                location: node.location
+              ),
+              *node.body
+            ]
+          )
         end
       end
 
       include SyntaxTree::DSL
 
-      COLLECTIONS = {
-        SyntaxTree::IVar => "state",
-        SyntaxTree::GVar => "props",
-      }
+      COLLECTIONS = { SyntaxTree::IVar => "state", SyntaxTree::GVar => "props" }
 
       def self.transform(source)
         transformer = new
-        SyntaxTree.parse(source)
+        SyntaxTree
+          .parse(source)
           .accept(transformer.heredoc_html)
           .then { transformer.wrap_in_class(_1) }
           .accept(transformer.frozen_strings)
@@ -47,24 +47,26 @@ module VDOM
 
       def wrap_in_class(program)
         statements =
-          Statements([
-            ClassDeclaration(
-              ConstPathRef(
-                VarRef(Ident("self")),
-                Const("Export")
-              ),
-              ConstPathRef(
-                VarRef(Const("VDOM")),
+          Statements(
+            [
+              ClassDeclaration(
+                ConstPathRef(VarRef(Ident("self")), Const("Export")),
                 ConstPathRef(
-                  VarRef(Const("Component")),
-                  Const("Base")
+                  VarRef(Const("VDOM")),
+                  ConstPathRef(VarRef(Const("Component")), Const("Base"))
+                ),
+                BodyStmt(
+                  Statements(
+                    [using_statements, program.statements.body].flatten
+                  ),
+                  nil,
+                  nil,
+                  nil,
+                  nil
                 )
-              ),
-              BodyStmt(
-                Statements([using_statements, program.statements.body].flatten),
-                nil, nil, nil, nil),
-            )
-          ])
+              )
+            ]
+          )
         program.copy(statements:)
       end
 
@@ -72,12 +74,9 @@ module VDOM
         [
           Command(
             Ident("using"),
-            Args([
-              ConstPathRef(
-                VarRef(Const("CSSUnits")),
-                Const("Refinements")
-              )
-            ]),
+            Args(
+              [ConstPathRef(VarRef(Const("CSSUnits")), Const("Refinements"))]
+            ),
             nil
           )
         ]
@@ -85,7 +84,9 @@ module VDOM
 
       def heredoc_html
         MutationVisitor.new.tap do |visitor|
-          visitor.mutate("XStringLiteral | Heredoc[beginning: HeredocBeg[value: '<<~HTML']]") do |node|
+          visitor.mutate(
+            "XStringLiteral | Heredoc[beginning: HeredocBeg[value: '<<~HTML']]"
+          ) do |node|
             tokenizer = XMLUtils::Tokenizer.new
 
             node.parts.flat_map do |child|
@@ -100,11 +101,7 @@ module VDOM
             parser = XMLUtils::Parser.new
             parser.parse(tokenizer.tokens.dup)
 
-            statements =
-              parser
-                .tokens
-                .map { xml_token_to_ast_node(_1) }
-                .compact
+            statements = parser.tokens.map { xml_token_to_ast_node(_1) }.compact
 
             SyntaxTree::Formatter.format("", Statements(statements))
 
@@ -115,40 +112,32 @@ module VDOM
 
       def xml_token_to_ast_node(token)
         case token
-        in type: :tag, value: { name:, attrs:, children: }
+        in { type: :tag, value: { name:, attrs:, children: } }
           args = [
             SymbolLiteral(Ident(name.to_sym)),
             *children.map { xml_token_to_ast_node(_1) },
             unless attrs.empty?
-              BareAssocHash(
-                attrs.map { xml_token_to_ast_node(_1) }
-              )
+              BareAssocHash(attrs.map { xml_token_to_ast_node(_1) })
             end
           ].compact
 
           ARef(VarRef(Const("H")), Args(args))
-        in type: :attr, value: { name:, value: }
+        in { type: :attr, value: { name:, value: } }
           Assoc(
             StringLiteral([TStringContent(name)], '"'),
             xml_token_to_ast_node(value)
           )
-        in type: :attr_value, value:
+        in { type: :attr_value, value: }
           StringLiteral([TStringContent(value)], '"')
-        in type: :var_ref, value: /\A@(.*)/
-          ARef(
-            call_self("state"),
-            Args([SymbolLiteral(Ident($~[1]))]),
-          )
-        in type: :var_ref, value: /\A\$(.*)/
-          ARef(
-            call_self("props"),
-            Args([SymbolLiteral(Ident($~[1]))]),
-          )
+        in { type: :var_ref, value: /\A@(.*)/ }
+          ARef(call_self("state"), Args([SymbolLiteral(Ident($~[1]))]))
+        in { type: :var_ref, value: /\A\$(.*)/ }
+          ARef(call_self("props"), Args([SymbolLiteral(Ident($~[1]))]))
         in type: :newline
           nil
-        in type: :string, value:
+        in { type: :string, value: }
           StringLiteral([TStringContent(value)], '"')
-        in type: :statements, value:
+        in { type: :statements, value: }
           case value.body
           in []
             nil
@@ -167,43 +156,32 @@ module VDOM
       end
 
       def call_self(method, args = nil)
-        CallNode(
-          VarRef(Kw("self")),
-          Period("."),
-          Ident(method),
-          args
-        )
+        CallNode(VarRef(Kw("self")), Period("."), Ident(method), args)
       end
 
       def update(nodes)
         MethodAddBlock(
           call_self("update"),
-          BlockNode(
-            Kw("{"),
-            nil,
-            Statements(Array(nodes))
-          )
+          BlockNode(Kw("{"), nil, Statements(Array(nodes)))
         )
       end
 
       def aref(node)
         ARef(
           call_self(COLLECTIONS.fetch(node.class)),
-          Args([SymbolLiteral(Ident(strip_var_prefix(node.value)))]),
+          Args([SymbolLiteral(Ident(strip_var_prefix(node.value)))])
         )
       end
 
       def aref_field(node)
         ARefField(
           call_self(COLLECTIONS.fetch(node.class)),
-          Args([SymbolLiteral(Ident(strip_var_prefix(node.value)))]),
+          Args([SymbolLiteral(Ident(strip_var_prefix(node.value)))])
         )
       end
 
       def strip_var_prefix(str)
-        str
-          .delete_prefix("@")
-          .delete_prefix("$")
+        str.delete_prefix("@").delete_prefix("$")
       end
     end
   end

@@ -33,10 +33,7 @@ module VDOM
           if stylesheet = component.const_get(:Styles)
             if stylesheet.is_a?(VDOM::StyleSheet)
               mod.assets.push(
-                Assets::Asset.build(
-                  path + ".css",
-                  stylesheet.content
-                )
+                Assets::Asset.build(path + ".css", stylesheet.content)
               )
             end
           end

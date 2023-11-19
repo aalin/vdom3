@@ -2,7 +2,7 @@
 // License: AGPL-3.0
 
 export default function serializeEvent(e: Event) {
-  const payload: Record<string, any> = {}
+  const payload: Record<string, any> = {};
 
   payload.type = e.constructor.name;
 

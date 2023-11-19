@@ -23,10 +23,8 @@ module VDOM
         instance_eval(@code, @path, 1)
       end
 
-      def marshal_dump =
-        [@code, @path, @assets]
-      def marshal_load(data) =
-        initialize(*data)
+      def marshal_dump = [@code, @path, @assets]
+      def marshal_load(data) = initialize(*data)
     end
   end
 end

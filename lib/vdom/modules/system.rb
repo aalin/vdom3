@@ -14,8 +14,7 @@ module VDOM
     class System
       CURRENT_KEY = :CurrentModulesSystem
 
-      def self.run(root, &) =
-        use(new(root), &)
+      def self.run(root, &) = use(new(root), &)
 
       def self.use(system)
         previous = Fiber[CURRENT_KEY]
@@ -25,33 +24,25 @@ module VDOM
         Fiber[CURRENT_KEY] = previous
       end
 
-      def self.current =
-        Fiber[CURRENT_KEY] or raise "No active system"
+      def self.current = Fiber[CURRENT_KEY] or raise "No active system"
 
       def self.import(path, source_file = "/") =
         current.import(path, source_file)
 
-      def self.register(path, mod) =
-        current.register(path, mod)
+      def self.register(path, mod) = current.register(path, mod)
 
-      def self.add_asset(asset) =
-        current.add_asset(asset)
+      def self.add_asset(asset) = current.add_asset(asset)
 
-      def self.get_asset(path) =
-        current.get_asset(path)
+      def self.get_asset(path) = current.get_asset(path)
 
-      def self.get_assets_for_module(path) =
-        current.get_assets_for_module(path)
+      def self.get_assets_for_module(path) = current.get_assets_for_module(path)
 
       attr_reader :root
 
       def initialize(root)
         @root = Pathname.new(File.expand_path(root, Dir.pwd))
 
-        @resolver = Resolver.new(
-          root: @root,
-          extensions: ["", ".haml"]
-        )
+        @resolver = Resolver.new(root: @root, extensions: ["", ".haml"])
 
         @assets = Assets.new
 
@@ -68,11 +59,9 @@ module VDOM
         @graph.delete_node(path)
       end
 
-      def get_asset(path) =
-        @assets.get(path)
+      def get_asset(path) = @assets.get(path)
 
-      def get_assets_for_module(path) =
-        @graph.get_obj(path)&.assets || []
+      def get_assets_for_module(path) = @graph.get_obj(path)&.assets || []
 
       def import(path, source_file = "/")
         resolved_path = @resolver.resolve(path, File.dirname(source_file))
@@ -106,8 +95,7 @@ module VDOM
       def add_dependency(source, target) =
         @graph.add_dependency(source.to_s, target.to_s)
 
-      def add_asset(asset) =
-        @assets.add(asset)
+      def add_asset(asset) = @assets.add(asset)
 
       def created(path)
         parts = path.delete_prefix("/").split("/")
@@ -125,21 +113,17 @@ module VDOM
         Registry.delete(path)
         @graph.delete_node(path)
 
-        dependants.each do
-          @graph.get_obj(_1).reevaluate
-        end
+        dependants.each { @graph.get_obj(_1).reevaluate }
       end
 
       alias deleted updated
 
-      def export_dot =
-        DotExporter.new(@graph).to_source
+      def export_dot = DotExporter.new(@graph).to_source
 
       def relative_from_root(absolute_path) =
         File.join("/", Pathname.new(absolute_path).relative_path_from(@root))
 
-      def relative_to_absolute(relative_path) =
-        File.join(@root, relative_path)
+      def relative_to_absolute(relative_path) = File.join(@root, relative_path)
     end
   end
 end

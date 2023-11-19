@@ -32,9 +32,12 @@ module VDOM
       end
 
       def self.path_to_const_name(path)
-        PREFIX + path.to_s.gsub(/[^[a-zA-Z0-9]]/) do |char|
-          REPLACEMENTS.fetch(char) { "_#{_1.ord}_" }
-        end
+        PREFIX +
+          path
+            .to_s
+            .gsub(/[^[a-zA-Z0-9]]/) do |char|
+              REPLACEMENTS.fetch(char) { "_#{_1.ord}_" }
+            end
       end
 
       def self.modules

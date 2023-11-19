@@ -20,12 +20,7 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
   def test_dump_and_load_object
     message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
 
-    object = {
-      foo: "hello",
-      bar: {
-        baz: [123.456, :asd]
-      }
-    }
+    object = { foo: "hello", bar: { baz: [123.456, :asd] } }
 
     dumped = message_cipher.dump(object)
     loaded = message_cipher.load(dumped)
@@ -51,7 +46,10 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
     message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
     dumped = message_cipher.dump("hello")
 
-    Time.stub(:now, Time.at(Time.now + VDOM::EncryptedMarshal::DEFAULT_TTL_SECONDS)) do
+    Time.stub(
+      :now,
+      Time.at(Time.now + VDOM::EncryptedMarshal::DEFAULT_TTL_SECONDS)
+    ) do
       assert_raises(VDOM::EncryptedMarshal::ExpiredError) do
         message_cipher.load(dumped)
       end
@@ -64,13 +62,10 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
 
     dumped = cipher1.dump("hello")
 
-    assert_raises(VDOM::EncryptedMarshal::DecryptError) do
-      cipher2.load(dumped)
-    end
+    assert_raises(VDOM::EncryptedMarshal::DecryptError) { cipher2.load(dumped) }
   end
 
   private
 
-  def generate_key =
-    RbNaCl::Random.random_bytes(RbNaCl::SecretBox.key_bytes)
+  def generate_key = RbNaCl::Random.random_bytes(RbNaCl::SecretBox.key_bytes)
 end
