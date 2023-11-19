@@ -98,7 +98,10 @@ class VDOM::Runtime::Test < Minitest::Test
         yield(
           VDOM::Runtime.new(
             environment:
-              VDOM::Environment.setup(File.join(__dir__, "..", "..")),
+              VDOM::Environment.setup(
+                root_path: File.join(__dir__, "..", ".."),
+                secret_key: "secret key",
+              ),
             session_id: VDOM::Server::Session::Token.generate
           )
         )

@@ -9,7 +9,7 @@ require_relative "encrypted_marshal"
 
 class VDOM::EncryptedMarshal::Test < Minitest::Test
   def test_dump_and_load
-    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(generate_key)
 
     dumped = message_cipher.dump("hello")
     loaded = message_cipher.load(dumped)
@@ -18,7 +18,7 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
   end
 
   def test_dump_and_load_object
-    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(generate_key)
 
     object = { foo: "hello", bar: { baz: [123.456, :asd] } }
 
@@ -30,7 +30,7 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
 
   def test_issued_in_the_future
     now = Time.now
-    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(generate_key)
 
     dumped = message_cipher.dump("hello")
 
@@ -43,7 +43,7 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
 
   def test_expiration
     now = Time.now
-    message_cipher = VDOM::EncryptedMarshal.new(key: generate_key)
+    message_cipher = VDOM::EncryptedMarshal.new(generate_key)
     dumped = message_cipher.dump("hello")
 
     Time.stub(
@@ -57,8 +57,8 @@ class VDOM::EncryptedMarshal::Test < Minitest::Test
   end
 
   def test_invalid_key
-    cipher1 = VDOM::EncryptedMarshal.new(key: generate_key)
-    cipher2 = VDOM::EncryptedMarshal.new(key: generate_key)
+    cipher1 = VDOM::EncryptedMarshal.new(generate_key)
+    cipher2 = VDOM::EncryptedMarshal.new(generate_key)
 
     dumped = cipher1.dump("hello")
 
