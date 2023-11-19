@@ -10,10 +10,11 @@ require "securerandom"
 require "cgi"
 require "pry"
 
+require_relative "runtime/patches"
+require_relative "runtime/inline_style"
+
 require_relative "component"
 require_relative "descriptors"
-require_relative "patches"
-require_relative "inline_style"
 
 module VDOM
   INCLUDE_DEBUG_ID = true
@@ -232,8 +233,6 @@ module VDOM
       private
 
       def init_html
-        puts "\e[3;35m#{__method__}: assets: #{@assets.to_a.inspect}\e[0m"
-
         H[Components::HTML,
           H[Components::Head,
             key: "head",

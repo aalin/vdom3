@@ -174,7 +174,7 @@ module VDOM
         body = EventStream::Writer.new
 
         body.write(
-          Patches::Initialize[session.dom_id_tree.serialize]
+          Runtime::Patches::Initialize[session.dom_id_tree.serialize]
         )
 
         task.async do

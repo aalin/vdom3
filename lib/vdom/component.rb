@@ -5,7 +5,7 @@
 
 require "pathname"
 require_relative "descriptors"
-require_relative "css_units"
+require_relative "component/css_units"
 require_relative "modules"
 
 module VDOM

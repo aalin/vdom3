@@ -66,7 +66,7 @@ module VDOM
           barrier.async do
             @stop.wait
             dumped = MessageCipher.new(key: "foo").dump(@runtime)
-            @output.enqueue(Patches::Transfer[dumped])
+            @output.enqueue(Runtime::Patches::Transfer[dumped])
             barrier.stop
           end
 
@@ -131,7 +131,7 @@ module VDOM
       def ping_loop
         loop do
           sleep 5
-          @output.enqueue(VDOM::Patches::Ping[current_ping_time])
+          @output.enqueue(Runtime::Patches::Ping[current_ping_time])
         end
       end
 
