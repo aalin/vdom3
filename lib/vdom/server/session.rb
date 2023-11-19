@@ -21,11 +21,7 @@ module VDOM
           SecureRandom.alphanumeric(TOKEN_LENGTH)
 
         def self.equal?(a, b) =
-          if a.length == b.length
-            OpenSSL.fixed_length_secure_compare(a, b)
-          else
-            false
-          end
+          RbNaCl::Util.verify64(a, b)
       end
 
       attr_reader :id
