@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    abbrev (0.1.1)
     async (2.6.5)
       console (~> 1.10)
       fiber-annotation
@@ -48,6 +49,10 @@ GEM
       racc (~> 1.4)
     nokogiri (1.15.5-x86_64-darwin)
       racc (~> 1.4)
+    prettier (4.0.2)
+      syntax_tree (>= 4.0.1)
+      syntax_tree-haml (>= 2.0.0)
+      syntax_tree-rbs (>= 0.2.0)
     prettier_print (1.2.1)
     protocol-hpack (1.4.2)
     protocol-http (0.24.7)
@@ -63,12 +68,18 @@ GEM
     rake (13.1.0)
     rbnacl (7.1.1)
       ffi
+    rbs (3.3.0)
+      abbrev
     syntax_tree (6.2.0)
       prettier_print (>= 1.2.0)
     syntax_tree-haml (4.0.3)
       haml (>= 5.2)
       prettier_print (>= 1.2.1)
       syntax_tree (>= 6.0.0)
+    syntax_tree-rbs (1.0.0)
+      prettier_print
+      rbs
+      syntax_tree (>= 2.0.1)
     syntax_tree-xml (0.1.0)
       prettier_print
       syntax_tree (>= 2.0.1)
@@ -95,6 +106,7 @@ DEPENDENCIES
   msgpack (~> 1.7)
   nanoid (~> 2.0)
   nokogiri (~> 1.15)
+  prettier (~> 4.0)
   pry (~> 0.14.2)
   rake (~> 13.0)
   rbnacl (~> 7.1)

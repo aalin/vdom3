@@ -31,3 +31,5 @@ gem "nanoid", "~> 2.0"
 gem "rbnacl", "~> 7.1"
 
 gem "nokogiri", "~> 1.15"
+
+gem "prettier", "~> 4.0"
