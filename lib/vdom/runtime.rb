@@ -26,18 +26,19 @@ module VDOM
     module Components
       class HTML < Component::Base
         def render
-          H[:html, H[:slot], @props[:descriptor], lang: @props[:lang]]
+          H[:html, H[:slot, key: "content"], @props[:descriptor], lang: @props[:lang]]
         end
       end
 
       class Head < Component::Base
         def render
-          @props => { session_id:, main_js: }
+          @props => { session_id:, main_js:, user_tags: }
 
           H[
             :__head,
             H[:meta, charset: "utf-8"],
-            H[:slot, key: "user_tags"],
+            *user_tags,
+            # H[:slot, key: "user_tags"],
             script_tag,
             *stylesheet_links
           ]
@@ -178,7 +179,7 @@ module VDOM
 
       def add_head(vnode, children)
         @head[vnode] = children
-        @html.update(init_html)
+        # @html.update(init_html)
       end
 
       def remove_head(vnode)
@@ -225,11 +226,12 @@ module VDOM
       private
 
       def init_html
+        puts "\e[3;33m#{__method__}\e[0m"
         H[
           Components::HTML,
           H[
             Components::Head,
-            *@head.values.flatten,
+            user_tags: @head.values.flatten,
             key: "head",
             session_id: @parent.session_id,
             main_js:
@@ -308,11 +310,11 @@ module VDOM
         old_descriptor = @descriptor
         @descriptor = new_descriptor
 
-        if old_descriptor.props != @descriptor.props ||
-             old_descriptor.children != @descriptor.children
+        unless old_descriptor.props == @descriptor.props
           @instance.instance_variable_set(:@props, @descriptor.props)
-          @children.update(@instance.render)
         end
+
+        @children.update(@instance.render)
       end
 
       def get_slotted(name)
@@ -336,8 +338,10 @@ module VDOM
     class VSlot < VNode
       def initialize(...)
         super
+        slotted_descriptors = get_slotted_descriptors
+        puts "\e[3;35mInitializing vslot #{self.id}\e[0m #{slotted_descriptors.inspect}"
         @children =
-          VChildren.new(get_slotted(@descriptor.props[:name]), parent: self)
+          VChildren.new(slotted_descriptors, parent: self)
       end
 
       def dom_id_tree = @children.dom_id_tree
@@ -345,7 +349,13 @@ module VDOM
 
       def update(descriptor)
         @descriptor = descriptor
-        @children.update(get_slotted(@descriptor.props[:name]))
+        slotted_descriptors = get_slotted_descriptors
+        puts "\e[3;35mUpdating vslot #{self.id}\e[0m #{slotted_descriptors.inspect}"
+        @children.update(slotted_descriptors)
+      end
+
+      def get_slotted_descriptors
+        get_slotted(@descriptor.props[:name])
       end
 
       def mount = @children.mount
@@ -357,6 +367,8 @@ module VDOM
 
     class VChildren < VNode
       STRING_SEPARATOR = Descriptors::Comment[""]
+
+      attr_reader :children
 
       def initialize(...)
         super
@@ -396,6 +408,12 @@ module VDOM
         patch do
           grouped = @children.group_by { Descriptors.get_hash(_1.descriptor) }
 
+          # if @children.any? { _1.descriptor == "Decrement" }
+          #     binding.pry
+          #   if descriptors.include?("Decrement")
+          #     binding.pry
+          #   end
+          # end
           # binding.pry unless grouped.empty?
 
           new_children =
@@ -405,8 +423,8 @@ module VDOM
                   found.update(descriptor)
                   found
                 else
-                  vnode = init_child_vnode(descriptor)
-                  vnode
+                  puts "\e[3;32mInitializing #{id}\e[0m #{descriptor.inspect}\e[0m"
+                  init_child_vnode(descriptor)
                 end
               end
               .compact
@@ -415,11 +433,12 @@ module VDOM
 
           @parent.update_children_order
 
-          # Async do
-          #   @children.each(&:after_initialize)
-          # end
+          @children.each(&:after_initialize)
 
-          grouped.values.flatten.each(&:unmount)
+          unless grouped.values.flatten.empty?
+            puts "\e[3;31mUnmounting #{id}\e[0m #{grouped.values.flatten.inspect}\e[0m"
+            grouped.values.flatten.each(&:unmount)
+          end
         end
       end
 
