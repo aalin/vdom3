@@ -20,7 +20,7 @@
   items = ["foo", "bar", "baz"]
 %head
   %title My webpage #{@count}
-  %meta(content="foobar #{@count / 2}"){name: "hello"}
+  %meta(content="foobar #{@count / 2}"){name: "hello"}/
 %div
   %Heading My webpage
   %h2.subtitle= title
@@ -37,7 +37,7 @@
     %summary List
     %ul
       = items.to_enum.with_index.map do |item, i|
-        %li[i](foo="bar"){class: i.zero? && :first}
+        %li{foo: "bar"}{class: i.zero? && :first}[i]
           %h3
             %span> Static
             %span= item

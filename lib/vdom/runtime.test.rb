@@ -91,17 +91,10 @@ class VDOM::Runtime::Test < Minitest::Test
   def test_head
     with_runtime do |runtime|
       runtime.render(
-        H[
-          :div,
-          H[:head,
-            H[:title, "hello"]
-          ],
-          H[:article, "foobar"]
-        ]
+        H[:div, H[:head, H[:title, "hello"]], H[:article, "foobar"]]
       )
 
-      assert_equal Nokogiri.HTML(runtime.to_html).at("title").to_s,
-        "hello"
+      assert_equal Nokogiri.HTML(runtime.to_html).at("title").to_s, "hello"
     end
   end
 
@@ -118,7 +111,7 @@ class VDOM::Runtime::Test < Minitest::Test
             environment:
               VDOM::Environment.setup(
                 root_path: File.join(__dir__, "..", ".."),
-                secret_key: "secret key",
+                secret_key: "secret key"
               ),
             session_id: VDOM::Server::Session::Token.generate
           )

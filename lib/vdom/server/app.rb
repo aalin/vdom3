@@ -50,11 +50,12 @@ module VDOM
         @sessions = SessionStore.new
         @file_cache = {}
 
-        @environment = Environment.setup(
-          root_path:,
-          secret_key:,
-          app_path: File.expand_path("demo")
-        )
+        @environment =
+          Environment.setup(
+            root_path:,
+            secret_key:,
+            app_path: File.expand_path("demo")
+          )
       end
 
       def stopping? = @state == States::STOPPING

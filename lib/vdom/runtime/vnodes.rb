@@ -295,8 +295,7 @@ module VDOM
           super
           slotted_descriptors = get_slotted_descriptors
           puts "\e[3;35mInitializing vslot #{self.id}\e[0m #{slotted_descriptors.inspect}"
-          @children =
-            VChildren.new(slotted_descriptors, parent: self)
+          @children = VChildren.new(slotted_descriptors, parent: self)
         end
 
         def dom_id_tree = @children.dom_id_tree

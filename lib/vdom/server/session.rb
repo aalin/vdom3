@@ -10,9 +10,7 @@ module VDOM
         TOKEN_LENGTH = 64
 
         def self.validate!(token)
-          unless valid_format?(token)
-            raise InvalidTokenError
-          end
+          raise InvalidTokenError unless valid_format?(token)
         end
 
         def self.valid_format?(token) =
@@ -34,7 +32,8 @@ module VDOM
         @output = Async::Queue.new
         @stop = Async::Condition.new
 
-        @engine = VDOM::Runtime::Engine.new(environment: environment, session_id: @id)
+        @engine =
+          VDOM::Runtime::Engine.new(environment: environment, session_id: @id)
         @engine.render(descriptor)
       end
 

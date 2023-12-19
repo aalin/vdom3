@@ -8,7 +8,12 @@ module VDOM
     module Components
       class HTML < Component::Base
         def render
-          H[:html, H[:slot, key: "content"], @props[:descriptor], lang: @props[:lang]]
+          H[
+            :html,
+            H[:slot, key: "content"],
+            @props[:descriptor],
+            lang: @props[:lang]
+          ]
         end
       end
 
