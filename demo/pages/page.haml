@@ -37,7 +37,7 @@
     %summary List
     %ul
       = items.to_enum.with_index.map do |item, i|
-        %li{foo: "bar"}{class: i.zero? && :first}[i]
+        %li[i]{foo: "bar", class: i.zero? && :first}
           %h3
             %span> Static
             %span= item

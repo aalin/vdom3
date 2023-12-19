@@ -10,7 +10,8 @@ class VDOM::Modules::System::Test < Minitest::Test
       VDOM::Modules::System.run("demo/") do |system|
         system.import("pages/page.haml")
         task = VDOM::Modules::Watcher.run(system)
-        sleep 5
+        # TODO: Update files or something, verify that they have updated
+        sleep 1
         task.stop
       end
     end
