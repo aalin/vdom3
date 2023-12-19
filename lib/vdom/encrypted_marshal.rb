@@ -4,7 +4,6 @@
 # License: AGPL-3.0
 
 require "time"
-require "digest/sha2"
 require "rbnacl"
 require "securerandom"
 require "brotli"
