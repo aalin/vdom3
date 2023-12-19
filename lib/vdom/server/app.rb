@@ -50,7 +50,11 @@ module VDOM
         @sessions = SessionStore.new
         @file_cache = {}
 
-        @environment = Environment.setup(root_path:, secret_key:)
+        @environment = Environment.setup(
+          root_path:,
+          secret_key:,
+          app_path: File.expand_path("demo")
+        )
       end
 
       def stopping? = @state == States::STOPPING
@@ -89,7 +93,12 @@ module VDOM
         end
       end
 
-      def handle_favicon(_) = send_public_file("favicon.png", "image/png")
+      def handle_favicon(request) =
+        send_file(
+          File.read(File.join(@environment.app_path, "favicon.png")),
+          "image/png",
+          origin_header(request)
+        )
 
       def handle_script(request) =
         send_file(
