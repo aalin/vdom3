@@ -4,7 +4,7 @@
 # License: AGPL-3.0
 
 module VDOM
-  class Runtime
+  module Runtime
     module Patches
       Initialize = Data.define(:id_tree)
 

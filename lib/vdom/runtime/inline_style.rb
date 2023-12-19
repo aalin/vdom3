@@ -4,7 +4,7 @@
 # License: AGPL-3.0
 
 module VDOM
-  class Runtime
+  module Runtime
     module InlineStyle
       # CSS properties which accept numbers but are not in units of "px".
       # Copied from React:

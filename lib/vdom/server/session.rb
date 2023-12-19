@@ -34,28 +34,28 @@ module VDOM
         @output = Async::Queue.new
         @stop = Async::Condition.new
 
-        @runtime = VDOM::Runtime.new(environment: environment, session_id: @id)
-        @runtime.render(descriptor)
+        @engine = VDOM::Runtime::Engine.new(environment: environment, session_id: @id)
+        @engine.render(descriptor)
       end
 
       def render
         puts "\e[3;33mRENDERING\e[0m"
-        @runtime.to_html
+        @engine.to_html
       end
 
-      def dom_id_tree = @runtime.dom_id_tree
+      def dom_id_tree = @engine.dom_id_tree
 
       def stop = @stop.signal
 
       def run
-        @runtime.run do
+        @engine.run do
           barrier = Async::Barrier.new
 
-          barrier.async { loop { @output.enqueue([@runtime.dequeue].flatten) } }
+          barrier.async { loop { @output.enqueue([@engine.dequeue].flatten) } }
 
           barrier.async do
             @stop.wait
-            dumped = @runtime.environment.encrypted_marshal.dump(@runtime)
+            dumped = @engine.environment.encrypted_marshal.dump(@engine)
             @output.enqueue(Runtime::Patches::Transfer[dumped])
             barrier.stop
           end
@@ -66,7 +66,7 @@ module VDOM
 
       def take = @output.dequeue
 
-      def callback(id, payload) = @runtime.callback(id, payload)
+      def callback(id, payload) = @engine.callback(id, payload)
 
       def pong(time) = @input.enqueue([:pong, time])
 
