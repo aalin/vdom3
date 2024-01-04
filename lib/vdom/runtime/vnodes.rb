@@ -142,7 +142,7 @@ module VDOM
         end
       end
 
-      class VAny
+      class VAny < Base
         def initialize(...)
           super(...)
           descriptor = unwrap(@descriptor)
@@ -156,6 +156,12 @@ module VDOM
         def mount = @child&.mount
         def unmount = @child&.unmount
         def update(...) = @child&.update(...)
+
+        def to_s = @child.to_s
+        def traverse(&) = @child.traverse(&)
+        def dom_node_name = @child.dom_node_name
+        def dom_ids = @child.dom_ids
+        def dom_id_tree = @child.dom_id_tree
 
         private
 
