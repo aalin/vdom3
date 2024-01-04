@@ -1,3 +1,8 @@
+# frozen_string_literal: true
+
+# Copyright Andreas Alin <andreas.alin@gmail.com>
+# License: AGPL-3.0
+
 module VDOM
   NullStyleSheet =
     Data.define(:component_class) do
@@ -42,10 +47,10 @@ module VDOM
                   Console.logger.error(
                     component_class.filename,
                     format(<<~MSG, class_name, available_class_names)
-                  Could not find class: \e[1;31m.%s\e[0m
-                  Available class names:
-                  \e[1;33m%s\e[0m
-                MSG
+                      Could not find class: \e[1;31m.%s\e[0m
+                      Available class names:
+                      \e[1;33m%s\e[0m
+                    MSG
                   )
                   nil
                 end

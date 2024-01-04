@@ -40,7 +40,17 @@ module VDOM
         end
 
       class Base
+        class AlreadyStartedError < StandardError
+        end
+
         def self.generate_id = SecureRandom.alphanumeric(10)
+
+        def self.run(...)
+          node = start(...)
+          yield node
+        ensure
+          node&.stop
+        end
 
         attr_reader :id
         attr_reader :descriptor
@@ -52,6 +62,36 @@ module VDOM
           @parent = parent
           @root = parent.root
           @id = Base.generate_id
+          @incoming = Async::Queue.new
+        end
+
+        def start(...)
+          if @task
+            raise AlreadyStartedError,
+                  "#{self.class.name} has already been started"
+          end
+
+          @task =
+            async do
+              Fiber[CURRENT_KEY] = self
+              run(...)
+            end
+
+          self
+        end
+
+        def run(...)
+          raise NotImplementedError,
+                "#{self.class.name}##{__method__} has not been implemented"
+        end
+
+        def resume(*args)
+          @incoming.dequeue until @incoming.empty?
+          @incoming.enqueue(args)
+        end
+
+        def stop
+          @task&.stop
         end
 
         def after_initialize = nil
@@ -62,12 +102,13 @@ module VDOM
 
         def marshal_dump = [@id, @parent, @descriptor, @instance, @children]
 
-        def closest(type) =
+        def closest(type)
           if type === self
             self
           else
             @parent.closest(type)
           end
+        end
 
         def traverse(&) = yield self
 
@@ -90,24 +131,63 @@ module VDOM
 
         def get_slotted(name) = @parent.get_slotted(name)
 
-        def init_child_vnode(descriptor)
+        private
+
+        def receive(&)
+          if block_given?
+            yield(*receive) while true
+          else
+            @incoming.dequeue
+          end
+        end
+      end
+
+      class VAny
+        def initialize(...)
+          super(...)
+          descriptor = unwrap(@descriptor)
+          @child =
+            descriptor_to_node_type(unwrap(descriptor)).new(
+              descriptor,
+              parent: self
+            )
+        end
+
+        def mount = @child&.mount
+        def unmount = @child&.unmount
+        def update(...) = @child&.update(...)
+
+        private
+
+        def unwrap(descriptor)
+          case Array(descriptor).compact.flatten
+          in []
+            ""
+          in [one]
+            one
+          in [*many]
+            many
+          end
+        end
+
+        def descriptor_to_node_type(descriptor)
           case descriptor
           in Descriptors::Element[type: Class]
-            VComponent.new(descriptor, parent: self)
+            VComponent
           in Descriptors::Element[type: :slot]
-            VSlot.new(descriptor, parent: self)
+            VSlot
           in Descriptors::Element[type: :head]
-            VHead.new(descriptor, parent: self)
+            VHead
           in Descriptors::Element
-            VElement.new(descriptor, parent: self)
+            VElement
           in Descriptors::Comment
-            VComment.new(descriptor, parent: self)
+            VComment
           in Descriptors::Text
-            VText.new(descriptor, parent: self)
+            VText
           in String | Numeric
-            VText.new(descriptor.to_s, parent: self)
+            VText
           in Array
-            VChildren.new(descriptor, parent: self)
+            VChildren
           in NilClass
             nil
           else
@@ -378,7 +458,7 @@ module VDOM
                     found
                   else
                     puts "\e[3;32mInitializing #{id}\e[0m #{descriptor.inspect}\e[0m"
-                    init_child_vnode(descriptor)
+                    VAny.new(descriptor, parent: self)
                   end
                 end
                 .compact
