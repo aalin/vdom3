@@ -7,9 +7,9 @@ gem "minitest", "~> 5.19"
 
 gem "pry", "~> 0.14.2"
 
-gem "async", "~> 2.6"
-gem "async-http", "~> 0.60.2"
-gem "async-io", "~> 1.35"
+gem "async", "~> 2.8"
+gem "async-http", "~> 0.61"
+gem "async-io", "~> 1.38"
 gem "localhost", "~> 1.1"
 
 gem "syntax_tree", "~> 6.1"
