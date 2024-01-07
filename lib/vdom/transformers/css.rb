@@ -21,10 +21,10 @@ module VDOM
           .then { SyntaxTree::Formatter.format("", _1) }
       end
 
-      def self.transform_inline(source_path, source, **)
+      def self.transform_inline(source_path, source, **options)
         Mayu::CSS
           .transform(source_path, source)
-          .then { new(_1, **).build_inline_ast }
+          .then { new(_1, **options).build_inline_ast }
       end
 
       def initialize(
@@ -130,7 +130,8 @@ module VDOM
         {
           **@parse_result.classes,
           **@parse_result.elements.transform_keys { "__#{_1}" }
-        }.sort_by(&:first)
+        }.transform_keys(&:to_s)
+          .sort_by(&:first)
           .map do |key, value|
             Assoc(
               Label("#{key}:"),
@@ -150,7 +151,7 @@ module VDOM
 
       def build_code_heredoc_inner
         parts = []
-        remains = @parse_result.code.gsub("\\", "\\\\\\\\")
+        remains = @parse_result.code.gsub("\\", "\\\\\\\\") + "\n"
 
         @parse_result.dependencies.map do |dep|
           dep => { placeholder: }

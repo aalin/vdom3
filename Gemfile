@@ -18,7 +18,7 @@ gem "syntax_tree-xml", "~> 0.1.0"
 
 gem "filewatcher", "~> 2.1"
 
-gem "mayu-css", "~> 0.0.3"
+gem "mayu-css", "~> 0.1.1"
 
 gem "mime-types", "~> 3.5"
 
@@ -33,3 +33,5 @@ gem "rbnacl", "~> 7.1"
 gem "nokogiri", "~> 1.15"
 
 gem "prettier", "~> 4.0"
+
+gem "syntax_suggest", "~> 2.0"

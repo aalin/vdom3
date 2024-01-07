@@ -5,6 +5,7 @@
 
 require "ripper"
 require "syntax_suggest"
+require "syntax_suggest/api"
 require "syntax_suggest/code_line"
 require "syntax_suggest/explain_syntax"
 require "syntax_suggest/lex_all"
@@ -115,10 +116,10 @@ module VDOM
           end
         end
 
-        def assocs(**kwargs)
-          kwargs.map { |key, value| Assoc(Label("#{key}:"), value) }
-        end
-
+        # def assocs(**kwargs)
+        #   kwargs.map { |key, value| Assoc(Label("#{key}:"), value) }
+        # end
+        #
         def array(elems)
           ArrayLiteral(LBracket("["), Args(elems))
         end
