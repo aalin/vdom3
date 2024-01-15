@@ -33,14 +33,77 @@ module VDOM
 
       COLLECTIONS = { SyntaxTree::IVar => "state", SyntaxTree::GVar => "props" }
 
+      class Formatter < SyntaxTree::Formatter
+        def format(node, stackable: true)
+          stack << node if stackable
+          doc = nil
+
+          # If there are comments, then we're going to format them around the node
+          # so that they get printed properly.
+          if node.comments.any?
+            trailing = []
+            last_leading = nil
+
+            # First, we're going to print all of the comments that were found before
+            # the node. We'll also gather up any trailing comments that we find.
+            node.comments.each do |comment|
+              if comment.trailing?
+                trailing << comment
+              else
+                comment.format(self)
+                breakable(force: true)
+                last_leading = comment
+              end
+            end
+
+            # If the node has a stree-ignore comment right before it, then we're
+            # going to just print out the node as it was seen in the source.
+            doc =
+              if last_leading&.ignore?
+                range = source[node.start_char...node.end_char]
+                first = true
+
+                range.each_line(chomp: true) do |line|
+                  if first
+                    first = false
+                  else
+                    breakable_return
+                  end
+
+                  text(line)
+                end
+
+                breakable_return if range.end_with?("\n")
+              else
+                node.format(self)
+              end
+
+            # Print all comments that were found after the node.
+            trailing.each do |comment|
+              line_suffix(priority: COMMENT_PRIORITY) do
+                comment.inline? ? text(" ") : breakable
+                comment.format(self)
+                break_parent
+              end
+            end
+          else
+            doc = node.format(self)
+          end
+
+          stack.pop if stackable
+          doc
+        end
+      end
+
       def self.transform(source)
         transformer = new
+        puts "\e[34m#{source}\e[0m"
         SyntaxTree
           .parse(source)
           .accept(transformer.heredoc_html)
           .then { transformer.wrap_in_class(_1) }
           .accept(transformer.frozen_strings)
-          .then { SyntaxTree::Formatter.format(source, _1) }
+          .then { Formatter.format(source, _1) }
       end
 
       def frozen_strings = FrozenStringLiteralsVisitor.new

@@ -290,6 +290,14 @@ module VDOM
       end
 
       class VComponent < Base
+        class RenderError < StandardError
+          attr_reader :original_error
+
+          def initialize(original_error)
+            @original_error = e
+          end
+        end
+
         def initialize(...)
           super(...)
 
@@ -302,7 +310,33 @@ module VDOM
           @instance = @descriptor.type.allocate
           @instance.instance_variable_set(:@props, @descriptor.props)
           @instance.send(:initialize)
-          @children = VChildren.new(@instance.render, parent: self)
+
+          begin
+            @children = VChildren.new(@instance.render, parent: self)
+          rescue => e
+            component_meta = @instance.class::COMPONENT_META
+            source_map = component_meta.source_map
+            source_map.rewrite_exception(component_meta.path, e)
+
+            interesting_lines =
+              e
+                .backtrace
+                .grep(/\A#{Regexp.escape(component_meta.path)}:/)
+                .map { _1.match(/:(\d+):/)[1].to_i }
+
+            source_map
+              .input
+              .each_line
+              .with_index(1) do |line, i|
+                if interesting_lines.include?(i)
+                  puts format("\e[1;31m%3d: %s\e[0m", i, line.chomp)
+                else
+                  puts format("%3d: %s", i, line.chomp)
+                end
+              end
+
+            raise e
+          end
         end
 
         def mount

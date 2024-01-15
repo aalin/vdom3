@@ -3,6 +3,7 @@
 # Copyright Andreas Alin <andreas.alin@gmail.com>
 # License: AGPL-3.0
 
+require "pry"
 require "ripper"
 require "syntax_suggest"
 require "syntax_suggest/api"
@@ -162,6 +163,10 @@ module VDOM
 
           # call_helpers(:slot, [Ident("children"), name].compact)
           call_helpers(:slot, [name].compact)
+        end
+
+        def ruby_comment(content)
+          Comment("# #{content}", false)
         end
 
         def comment(content)
@@ -372,6 +377,7 @@ module VDOM
           @options = options
           @builder = RubyBuilder.new(options)
           @state = {}
+          @sourcemap = []
         end
 
         def visit_root(node)
@@ -383,7 +389,7 @@ module VDOM
             case child
             in { type: :filter, value: { name: "ruby" } }
               if setup.empty? && styles.empty?
-                setup.push(child)
+                setup.push(*source_map_mark(child.line, ":ruby") { child })
               else
                 render.push(child)
               end
@@ -410,6 +416,8 @@ module VDOM
         end
 
         def visit_comment(node)
+          return node if node.is_a?(SyntaxTree::Comment)
+
           @builder.comment(
             if node.children
               node
@@ -463,14 +471,18 @@ module VDOM
           attrs.push(@builder.props_hash(attributes)) unless attributes.empty?
 
           if old = dynamic_attributes.old
-            attrs.push(*parse_ruby(old))
+            attrs.push(
+              source_map_mark(node.line, old.strip) { parse_ruby(old) }
+            )
           end
 
           if new = dynamic_attributes.new
             attrs.push(
-              *parse_ruby(new)
-                .map { _1.accept(string_keys_to_labels_mutation_visitor) }
-                .map { _1.accept(wrap_handler_mutation_visitor) }
+              source_map_mark(node.line, new.strip) do
+                parse_ruby(new)
+                  .map { _1.accept(string_keys_to_labels_mutation_visitor) }
+                  .map { _1.accept(wrap_handler_mutation_visitor) }
+              end
             )
           end
 
@@ -486,7 +498,10 @@ module VDOM
             if value
               if node.value[:parse]
                 parse_ruby(value, fix: false) => statements
-                @builder.ruby_script(statements)
+
+                source_map_mark(node.line, value.strip) do
+                  @builder.ruby_script(statements)
+                end
               elsif !value.empty?
                 @builder.string_literal(value.to_s)
               end
@@ -585,7 +600,7 @@ module VDOM
               in [{ type: :script, value: { keyword: "begin" } }, *]
                 group_condition(:begin, chunk)
               else
-                chunk.map { _1.accept(self) }
+                chunk.map { |node| node.accept(self) }
               end
             end
             .flatten
@@ -632,7 +647,7 @@ module VDOM
         end
 
         def join_ruby_script_nodes(nodes)
-          nodes.map { _1.value[:text] }.join("\n")
+          nodes.map { |node| node.value[:text] }.join("\n")
         end
 
         def prepend_whitespace(children)
@@ -678,7 +693,9 @@ module VDOM
         def visit_filter(node)
           case node.value
           in { name: "ruby", text: }
-            @builder.ruby_script(parse_ruby(text)) if text
+            if text
+              @builder.ruby_script(parse_ruby(text, mark_sourcemap: node.line))
+            end
           in { name: "css", text: }
             text
           in { name: "plain", text: }
@@ -698,7 +715,31 @@ module VDOM
           @builder.string_literal(text)
         end
 
+        SourceMapMark =
+          Data.define(:id, :line, :text) do
+            def self.create(line, text)
+              new(SecureRandom.alphanumeric(10), line, text)
+            end
+
+            def to_comment
+              "SourceMapMark:#{id}:#{line}:#{Base64.urlsafe_encode64(text)}"
+            end
+          end
+
+        def source_map_mark(line, content, &)
+          entry = SourceMapMark.create(line, content)
+          @sourcemap.push(entry)
+
+          [@builder.ruby_comment(entry.to_comment), yield].flatten
+        end
+
         def visit_script(node)
+          source_map_mark(node.line, node.value[:text].strip) do
+            visit_script2(node)
+          end
+        end
+
+        def visit_script2(node)
           case node.value[:text].strip
           when /\Areturn\s+(?<type>if|unless)\s+(?<condition_source>.+)/
             $~ => { type:, condition_source: }
@@ -765,10 +806,67 @@ module VDOM
           @builder.ruby_script([statement.accept(visitor)])
         end
 
-        def parse_ruby(source, fix: false)
+        class SourceMapMarkRubyVisitor < SyntaxTree::Visitor
+          def initialize(source, offset)
+            @source_lines = source.lines
+            @offset = offset
+          end
+
+          def visit_program(node)
+            return node
+            node.copy(statements: visit(node.statements))
+          end
+
+          def visit_def(node)
+            visit_child_nodes(node)
+
+            code = @source_lines[node.location.start_line - 1].strip
+
+            node.comments.replace(
+              [
+                SyntaxTree::Comment.new(
+                  value:
+                    "# #{SourceMapMark.create(@offset + node.location.start_line, code).to_comment}",
+                  inline: false,
+                  location: node.location
+                )
+              ]
+            )
+            node
+          end
+
+          def visit_statements(node)
+            visit_child_nodes(node)
+
+            code = @source_lines[node.location.start_line - 1].strip
+
+            node.comments.replace(
+              [
+                SyntaxTree::Comment.new(
+                  value:
+                    "# #{SourceMapMark.create(@offset + node.location.start_line, code).to_comment}",
+                  inline: false,
+                  location: node.location
+                )
+              ]
+            )
+            node
+          end
+        end
+
+        def parse_ruby(source, fix: false, mark_sourcemap: false)
           source = fix_syntax_by_adding_missing_pairs(source) if fix
 
-          SyntaxTree.parse(source).statements.body
+          statements = SyntaxTree.parse(source).statements
+
+          if mark_sourcemap
+            visitor = SourceMapMarkRubyVisitor.new(source, mark_sourcemap)
+
+            statements.accept(visitor)
+            statements.body
+          else
+            statements.body
+          end
         rescue SyntaxTree::Parser::ParseError => e
           explain =
             SyntaxSuggest::ExplainSyntax.new(

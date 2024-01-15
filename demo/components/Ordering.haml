@@ -9,9 +9,14 @@
     @items = @items.shuffle
   end
 
+  def hello
+    raise "asd"
+  end
+
 %div
   %button(onclick=handle_reorder) Reorder
   %pre<= @items.map(&:id).join(" ")
+  %div= hello
   %ul
     = @items.map do |item|
       %li[item.id]= item.to_h.inspect
