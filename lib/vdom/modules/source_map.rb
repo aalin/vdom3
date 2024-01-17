@@ -3,8 +3,16 @@ module VDOM
     module SourceMap
       Mark =
         Data.define(:line, :text) do
-          def to_comment
+          def to_s
             "SourceMapMark:#{line}:#{Base64.urlsafe_encode64(text)}"
+          end
+
+          def to_comment(location: SyntaxTree::Location.default)
+            SyntaxTree::Comment.new(
+              value: "# #{to_s}",
+              inline: false,
+              location:
+            )
           end
         end
 
@@ -25,27 +33,42 @@ module VDOM
       SourceMap =
         Data.define(:input, :output, :mappings) do
           def self.parse(input, output)
-            mappings = {}
-
             input_lines = input.each_line.to_a
-            output_lines = output.each_line.to_a
 
-            found =
+            mappings =
               output
                 .each_line
                 .with_index(1)
-                .map { |line, i| MatchingLine.match(i, line) }
-                .compact
-                .flatten
-
-            [*found, nil].each_cons(2) do |curr, succ|
-              line_no = curr.old_line
-              column = input_lines[line_no.pred].to_s.index(curr.text) || 0
-              p [curr.new_line + 1, line_no, curr.text]
-              mappings[curr.new_line + 1] = Pos[line_no, column]
-            end
+                .each_with_object({}) do |(line, i), acc|
+                  if curr = MatchingLine.match(i, line)
+                    line_no = curr.old_line
+                    column =
+                      input_lines[line_no.pred].to_s.index(curr.text) || 0
+                    acc[curr.new_line + 1] = Pos[line_no, column]
+                  end
+                end
 
             new(input, output, mappings)
+            # mappings = {}
+            #
+            # input_lines = input.each_line.to_a
+            # output_lines = output.each_line.to_a
+            #
+            # found =
+            #   output
+            #     .each_line
+            #     .with_index(1)
+            #     .map { |line, i| MatchingLine.match(i, line) }
+            #     .compact
+            #     .flatten
+            #
+            # [*found, nil].each_cons(2) do |curr, succ|
+            #   line_no = curr.old_line
+            #   column = input_lines[line_no.pred].to_s.index(curr.text) || 0
+            #   mappings[curr.new_line + 1] = Pos[line_no, column]
+            # end
+            #
+            # new(input, output, mappings)
           end
 
           def rewrite_exception(file, e)

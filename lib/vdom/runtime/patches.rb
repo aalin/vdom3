@@ -40,7 +40,8 @@ module VDOM
 
       Event = Data.define(:event, :payload)
 
-      RenderError = Data.define(:file, :type, :message, :backtrace, :source)
+      RenderError =
+        Data.define(:file, :type, :message, :backtrace, :source, :tree_path)
     end
   end
 end

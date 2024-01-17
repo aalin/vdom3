@@ -717,12 +717,7 @@ module VDOM
         end
 
         def source_map_mark(line, content, &)
-          [
-            @builder.ruby_comment(
-              Modules::SourceMap::Mark[line, content].to_comment
-            ),
-            yield
-          ].flatten
+          [Modules::SourceMap::Mark[line, content].to_comment, yield].flatten
         end
 
         def visit_script(node)
@@ -820,12 +815,10 @@ module VDOM
 
             node.comments.replace(
               [
-                SyntaxTree::Comment.new(
-                  value:
-                    "# #{Modules::SourceMap::Mark[@offset + node.location.start_line, code].to_comment}",
-                  inline: false,
-                  location: node.location
-                )
+                Modules::SourceMap::Mark[
+                  @offset + node.location.start_line,
+                  code
+                ].to_comment
               ]
             )
             node
@@ -838,12 +831,10 @@ module VDOM
 
             node.comments.replace(
               [
-                SyntaxTree::Comment.new(
-                  value:
-                    "# #{Modules::SourceMap::Mark[@offset + node.location.start_line, code].to_comment}",
-                  inline: false,
-                  location: node.location
-                )
+                Modules::SourceMap::Mark[
+                  @offset + node.location.start_line,
+                  code
+                ].to_comment
               ]
             )
             node

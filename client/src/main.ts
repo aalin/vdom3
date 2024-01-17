@@ -11,6 +11,8 @@ import { decodeMultiStream, ExtensionCodec } from "@msgpack/msgpack";
 
 import { SESSION_MIME_TYPE, SESSION_PATH } from "./constants";
 
+import "./custom-elements/mayu-exception";
+
 declare global {
   interface Window {
     Mayu: Mayu;

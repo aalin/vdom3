@@ -416,13 +416,24 @@ module VDOM
             end
           end
 
+          tree_path =
+            component_path.each_with_index.map do |part, index|
+              if Class === part && part.const_defined?(:COMPONENT_META)
+                meta = part::COMPONENT_META
+                { name: meta.name.to_s, path: meta.path }
+              else
+                { name: part.to_s }
+              end
+            end
+
           patch do |patches|
             patches << Patches::RenderError[
               component_meta.path,
               e.class.name,
               e.message,
               e.backtrace,
-              source_map.input
+              source_map.input,
+              tree_path
             ]
           end
 

@@ -109,7 +109,13 @@ module VDOM
       def handle_script(request) =
         send_file(
           File.read(
-            File.join(@environment.client_path, File.basename(request.path))
+            File.join(
+              @environment.client_path,
+              Pathname
+                .new(request.path)
+                .relative_path_from("/.mayu/runtime")
+                .to_s
+            )
           ),
           "application/javascript; charset=utf-8",
           origin_header(request)

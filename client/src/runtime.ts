@@ -154,14 +154,86 @@ const Patches = {
     message: string,
     backtrace: string[],
     source: string,
+    treePath: { name: string; path?: string }[],
   ) {
-    console.error(
-      `
-      %c${type}: ${message}
-      %c${backtrace.join("\n")}
-    `.trim(),
-      "font-size: 1.25em; font-size: red",
-      "font-size: 1em;",
+    const formats = [];
+    const buf = [];
+
+    buf.push(`%c${type}: ${message}`);
+    formats.push("font-size: 1.25em");
+
+    treePath.forEach((path, i) => {
+      const indent = "  ".repeat(i);
+      if (path.path) {
+        buf.push(`%c${indent}%%%c${path.name} %c(${path.path})`);
+        formats.push("color: deeppink;", "color: deepskyblue;", "color: gray;");
+      } else {
+        buf.push(`%c${indent}%%%c${path.name}`);
+        formats.push("color: deeppink;", "color: deepskyblue;");
+      }
+    });
+
+    backtrace.forEach((line) => {
+      buf.push(`%c${line}`);
+
+      formats.push(
+        line.startsWith(`${file}:`)
+          ? "font-size: 1em; font-weight: 600; text-shadow: 0 0 3px #000;"
+          : "font-size: 1em;",
+      );
+    });
+
+    console.error(buf.join("\n"), ...formats);
+
+    const existing = Array.from(
+      document.getElementsByTagName("mayu-exception"),
+    );
+    existing.forEach((e) => {
+      e.remove();
+    });
+
+    const interestingLines = new Set<number>();
+
+    backtrace.forEach((line) => {
+      if (line.startsWith(`${file}:`)) {
+        interestingLines.add(Number(line.split(":")[1]));
+      }
+    });
+
+    console.log("INTERESTING LINES", interestingLines);
+
+    document.body.appendChild(
+      h("mayu-exception", [
+        h("span", [`${type}: ${message}`], { slot: "title" }),
+        ...treePath.map((path, i) =>
+          h(
+            "li",
+            [
+              h("span", ["  ".repeat(i)]),
+              h("span", ["%"], { class: "tag" }),
+              path.name,
+              path.path && h("span", [`(${path.path})`], { class: "path" }),
+            ],
+            { slot: "tree-path" },
+          ),
+        ),
+        ...backtrace.map((line) =>
+          h("li", [line.startsWith(`${file}:`) ? h("strong", [line]) : line], {
+            slot: "backtrace",
+          }),
+        ),
+        ...source
+          .split("\n")
+          .map((line, i) =>
+            h(
+              "li",
+              [interestingLines.has(i + 1) ? h("strong", [line]) : line],
+              { slot: "source" },
+            ),
+          ),
+      ]),
     );
   },
 } as const;
+
+import h from "./h";
