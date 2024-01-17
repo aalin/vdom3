@@ -39,6 +39,8 @@ module VDOM
       Ping = Data.define(:timestamp)
 
       Event = Data.define(:event, :payload)
+
+      RenderError = Data.define(:file, :type, :message, :backtrace, :source)
     end
   end
 end

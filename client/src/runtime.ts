@@ -89,7 +89,7 @@ const Patches = {
       if (!domNode) return;
       if (domNode.nodeName !== idNode.name) {
         console.error(
-          `Node ${idNode.id} should be ${idNode.name}, but found ${domNode.nodeName}`
+          `Node ${idNode.id} should be ${idNode.name}, but found ${domNode.nodeName}`,
         );
       }
       this.setNode(idNode.id, domNode);
@@ -146,5 +146,22 @@ const Patches = {
     console.error(path);
     console.error(path);
     console.error(path);
+  },
+  RenderError(
+    this: NodeSet,
+    file: string,
+    type: string,
+    message: string,
+    backtrace: string[],
+    source: string,
+  ) {
+    console.error(
+      `
+      %c${type}: ${message}
+      %c${backtrace.join("\n")}
+    `.trim(),
+      "font-size: 1.25em; font-size: red",
+      "font-size: 1em;",
+    );
   },
 } as const;

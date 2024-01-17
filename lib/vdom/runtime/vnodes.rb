@@ -293,14 +293,6 @@ module VDOM
       end
 
       class VComponent < Base
-        class RenderError < StandardError
-          attr_reader :original_error
-
-          def initialize(original_error)
-            @original_error = e
-          end
-        end
-
         def initialize(...)
           super(...)
 
@@ -314,46 +306,7 @@ module VDOM
           @instance.instance_variable_set(:@props, @descriptor.props)
           @instance.send(:initialize)
 
-          children =
-            begin
-              @instance.render
-            rescue => e
-              component_meta = @instance.class::COMPONENT_META
-              source_map = component_meta.source_map
-              source_map.rewrite_exception(component_meta.path, e)
-
-              puts e.full_message(highlight: true)
-
-              interesting_lines =
-                e
-                  .backtrace
-                  .grep(/\A#{Regexp.escape(component_meta.path)}:/)
-                  .map { _1.match(/:(\d+):/)[1].to_i }
-
-              source_map
-                .input
-                .each_line
-                .with_index(1) do |line, i|
-                  if interesting_lines.include?(i)
-                    puts format("\e[1;31m%3d: %s\e[0m", i, line.chomp)
-                  else
-                    puts format("%3d: %s", i, line.chomp)
-                  end
-                end
-
-              component_path.each_with_index do |part, index|
-                if Class === part && part.const_defined?(:COMPONENT_META)
-                  meta = part::COMPONENT_META
-                  puts "#{"  " * index}\e[35m%\e[36m#{meta.name} \e[0;2m(#{meta.path})\e[0m"
-                else
-                  puts "#{"  " * index}\e[35m%\e[36m#{part}\e[0m"
-                end
-              end
-
-              Descriptors::H[:p, "Error"]
-            end
-
-          @children = VChildren.new(children, parent: self)
+          @children = VChildren.new(instance_render, parent: self)
         end
 
         def component_path = [*@parent.component_path, @descriptor.type]
@@ -374,7 +327,7 @@ module VDOM
 
               loop do
                 queue.wait
-                @children.update(@instance.render)
+                @children.update(instance_render)
               end
 
               barrier.wait
@@ -408,7 +361,7 @@ module VDOM
             @instance.instance_variable_set(:@props, @descriptor.props)
           end
 
-          @children.update(@instance.render)
+          @children.update(instance_render)
         end
 
         def get_slotted(name)
@@ -426,6 +379,54 @@ module VDOM
         private
 
         def init_task
+        end
+
+        def instance_render
+          @instance.render
+        rescue => e
+          component_meta = @instance.class::COMPONENT_META
+          source_map = component_meta.source_map
+          source_map.rewrite_exception(component_meta.path, e)
+
+          puts e.full_message(highlight: true)
+
+          interesting_lines =
+            e
+              .backtrace
+              .grep(/\A#{Regexp.escape(component_meta.path)}:/)
+              .map { _1.match(/:(\d+):/)[1].to_i }
+
+          source_map
+            .input
+            .each_line
+            .with_index(1) do |line, i|
+              if interesting_lines.include?(i)
+                puts format("\e[1;31m%3d: %s\e[0m", i, line.chomp)
+              else
+                puts format("%3d: %s", i, line.chomp)
+              end
+            end
+
+          component_path.each_with_index do |part, index|
+            if Class === part && part.const_defined?(:COMPONENT_META)
+              meta = part::COMPONENT_META
+              puts "#{"  " * index}\e[35m%\e[36m#{meta.name} \e[0;2m(#{meta.path})\e[0m"
+            else
+              puts "#{"  " * index}\e[35m%\e[36m#{part}\e[0m"
+            end
+          end
+
+          patch do |patches|
+            patches << Patches::RenderError[
+              component_meta.path,
+              e.class.name,
+              e.message,
+              e.backtrace,
+              source_map.input
+            ]
+          end
+
+          Descriptors::H[:p, "Error"]
         end
       end
 
