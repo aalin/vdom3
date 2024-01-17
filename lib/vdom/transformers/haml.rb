@@ -16,6 +16,7 @@ require "syntax_tree/haml"
 require_relative "css"
 require_relative "mutation_visitor"
 require_relative "../style_sheet"
+require_relative "../modules/source_map"
 
 module VDOM
   module Transformers
@@ -715,22 +716,13 @@ module VDOM
           @builder.string_literal(text)
         end
 
-        SourceMapMark =
-          Data.define(:id, :line, :text) do
-            def self.create(line, text)
-              new(SecureRandom.alphanumeric(10), line, text)
-            end
-
-            def to_comment
-              "SourceMapMark:#{id}:#{line}:#{Base64.urlsafe_encode64(text)}"
-            end
-          end
-
         def source_map_mark(line, content, &)
-          entry = SourceMapMark.create(line, content)
-          @sourcemap.push(entry)
-
-          [@builder.ruby_comment(entry.to_comment), yield].flatten
+          [
+            @builder.ruby_comment(
+              Modules::SourceMap::Mark[line, content].to_comment
+            ),
+            yield
+          ].flatten
         end
 
         def visit_script(node)
@@ -744,7 +736,11 @@ module VDOM
           when /\Areturn\s+(?<type>if|unless)\s+(?<condition_source>.+)/
             $~ => { type:, condition_source: }
 
-            parse_ruby(condition_source, fix: true) => [condition]
+            parse_ruby(
+              condition_source,
+              fix: true,
+              mark_sourcemap: node.line
+            ) => [condition]
 
             statements =
               @builder.Statements(
@@ -826,7 +822,7 @@ module VDOM
               [
                 SyntaxTree::Comment.new(
                   value:
-                    "# #{SourceMapMark.create(@offset + node.location.start_line, code).to_comment}",
+                    "# #{Modules::SourceMap::Mark[@offset + node.location.start_line, code].to_comment}",
                   inline: false,
                   location: node.location
                 )
@@ -844,7 +840,7 @@ module VDOM
               [
                 SyntaxTree::Comment.new(
                   value:
-                    "# #{SourceMapMark.create(@offset + node.location.start_line, code).to_comment}",
+                    "# #{Modules::SourceMap::Mark[@offset + node.location.start_line, code].to_comment}",
                   inline: false,
                   location: node.location
                 )

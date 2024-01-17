@@ -131,6 +131,8 @@ module VDOM
 
         def get_slotted(name) = @parent.get_slotted(name)
 
+        def component_path = @parent.component_path
+
         private
 
         def receive(&)
@@ -242,6 +244,7 @@ module VDOM
         end
 
         def dom_id_tree = @html.dom_id_tree.first
+        def component_path = []
 
         def update(descriptor)
           @descriptor = descriptor
@@ -311,33 +314,49 @@ module VDOM
           @instance.instance_variable_set(:@props, @descriptor.props)
           @instance.send(:initialize)
 
-          begin
-            @children = VChildren.new(@instance.render, parent: self)
-          rescue => e
-            component_meta = @instance.class::COMPONENT_META
-            source_map = component_meta.source_map
-            source_map.rewrite_exception(component_meta.path, e)
+          children =
+            begin
+              @instance.render
+            rescue => e
+              component_meta = @instance.class::COMPONENT_META
+              source_map = component_meta.source_map
+              source_map.rewrite_exception(component_meta.path, e)
 
-            interesting_lines =
-              e
-                .backtrace
-                .grep(/\A#{Regexp.escape(component_meta.path)}:/)
-                .map { _1.match(/:(\d+):/)[1].to_i }
+              puts e.full_message(highlight: true)
 
-            source_map
-              .input
-              .each_line
-              .with_index(1) do |line, i|
-                if interesting_lines.include?(i)
-                  puts format("\e[1;31m%3d: %s\e[0m", i, line.chomp)
+              interesting_lines =
+                e
+                  .backtrace
+                  .grep(/\A#{Regexp.escape(component_meta.path)}:/)
+                  .map { _1.match(/:(\d+):/)[1].to_i }
+
+              source_map
+                .input
+                .each_line
+                .with_index(1) do |line, i|
+                  if interesting_lines.include?(i)
+                    puts format("\e[1;31m%3d: %s\e[0m", i, line.chomp)
+                  else
+                    puts format("%3d: %s", i, line.chomp)
+                  end
+                end
+
+              component_path.each_with_index do |part, index|
+                if Class === part && part.const_defined?(:COMPONENT_META)
+                  meta = part::COMPONENT_META
+                  puts "#{"  " * index}\e[35m%\e[36m#{meta.name} \e[0;2m(#{meta.path})\e[0m"
                 else
-                  puts format("%3d: %s", i, line.chomp)
+                  puts "#{"  " * index}\e[35m%\e[36m#{part}\e[0m"
                 end
               end
 
-            raise e
-          end
+              Descriptors::H[:p, "Error"]
+            end
+
+          @children = VChildren.new(children, parent: self)
         end
+
+        def component_path = [*@parent.component_path, @descriptor.type]
 
         def mount
           @task =
@@ -606,6 +625,8 @@ module VDOM
 
         def dom_id_tree = IdNode[@id, dom_node_name, @children.dom_id_tree]
         def dom_node_name = tag_name.upcase
+
+        def component_path = [*@parent.component_path, @descriptor.type]
 
         def mount = @children.mount
 
