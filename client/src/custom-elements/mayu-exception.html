@@ -1,5 +1,6 @@
 <style>
   dialog {
+    container-type: inline-size;
     position: fixed;
     width: 80vw;
     top: 50%;
@@ -64,7 +65,7 @@
     overflow-y: scroll;
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
     padding: 1em;
     gap: 1em;
   }
@@ -81,23 +82,24 @@
   .tree-path {
     list-style-type: none;
     white-space: pre-wrap;
+    margin: 0;
+    padding: 0;
   }
 
   .backtrace {
     list-style-type: none;
     font-size: 1em;
     white-space: pre-wrap;
+    margin: 0;
+    padding: 0;
   }
 
   .source {
+    padding: 0.5em;
     background: #333;
     color: #fff;
     list-style-type: decimal;
     white-space: pre-wrap;
-
-    & strong {
-      color: #c00;
-    }
   }
 </style>
 <dialog>

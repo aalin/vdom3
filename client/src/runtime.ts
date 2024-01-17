@@ -192,6 +192,10 @@ const Patches = {
       e.remove();
     });
 
+    const element =
+      document.getElementsByTagName("mayu-exception")[0] ||
+      document.createElement("mayu-exception");
+
     const interestingLines = new Set<number>();
 
     backtrace.forEach((line) => {
@@ -202,37 +206,52 @@ const Patches = {
 
     console.log("INTERESTING LINES", interestingLines);
 
-    document.body.appendChild(
-      h("mayu-exception", [
-        h("span", [`${type}: ${message}`], { slot: "title" }),
-        ...treePath.map((path, i) =>
-          h(
-            "li",
-            [
-              h("span", ["  ".repeat(i)]),
-              h("span", ["%"], { class: "tag" }),
-              path.name,
-              path.path && h("span", [`(${path.path})`], { class: "path" }),
-            ],
-            { slot: "tree-path" },
-          ),
+    element.replaceChildren(
+      h("span", [`${type}: ${message}`], { slot: "title" }),
+      ...treePath.map((path, i) =>
+        h(
+          "li",
+          [
+            h("span", ["  ".repeat(i)]),
+            h("span", ["%"], { style: "color: deeppink;" }),
+            h("span", [path.name], { style: "color: deepskyblue;" }),
+            " ",
+            path.path &&
+              h("span", [`(${path.path})`], { style: "opacity: 50%;" }),
+          ],
+          { slot: "tree-path" },
         ),
-        ...backtrace.map((line) =>
-          h("li", [line.startsWith(`${file}:`) ? h("strong", [line]) : line], {
+      ),
+      ...backtrace.map((line) =>
+        h(
+          "li",
+          [
+            line.startsWith(`${file}:`)
+              ? h("strong", [line], { style: "color: red;" })
+              : line,
+          ],
+          {
             slot: "backtrace",
-          }),
+          },
         ),
-        ...source
-          .split("\n")
-          .map((line, i) =>
-            h(
-              "li",
-              [interestingLines.has(i + 1) ? h("strong", [line]) : line],
-              { slot: "source" },
-            ),
-          ),
-      ]),
+      ),
+      ...source.split("\n").map((line, i) =>
+        h(
+          "li",
+          [
+            interestingLines.has(i + 1)
+              ? h("strong", [line], { style: "color: red;" })
+              : line,
+          ],
+          {
+            slot: "source",
+          },
+        ),
+      ),
     );
+    console.log("FILE", file);
+
+    document.body.appendChild(element);
   },
 } as const;
 
